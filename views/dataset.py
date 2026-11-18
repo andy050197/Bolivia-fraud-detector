@@ -13,31 +13,44 @@ class DatasetView(ctk.CTkFrame):
         self._build_ui()
 
     def _build_ui(self):
+        # Título Principal
         ctk.CTkLabel(self, text="Dataset de Mensajes - Corpus de Entrenamiento",
                      font=ctk.CTkFont(size=22, weight="bold"), text_color="#1e293b"
                      ).pack(anchor="w", padx=30, pady=(25, 2))
 
-        # Botones acción
-        frame_acciones = ctk.CTkFrame(self, fg_color="transparent")
-        frame_acciones.pack(anchor="w", padx=30, pady=(0, 15))
-        ctk.CTkButton(frame_acciones, text="+ Nuevo Mensaje", width=150, height=36,
-                      fg_color="#1e40af", command=self._nuevo_mensaje).pack(side="left", padx=5)
-        ctk.CTkButton(frame_acciones, text="⬇ Importar CSV", width=140, height=36,
-                      fg_color="white", text_color="#374151", border_width=1, border_color="#d1d5db",
-                      hover_color="#f3f4f6", command=self._importar_csv).pack(side="left", padx=5)
-        ctk.CTkButton(frame_acciones, text="⬆ Exportar CSV", width=140, height=36,
-                      fg_color="white", text_color="#374151", border_width=1, border_color="#d1d5db",
-                      hover_color="#f3f4f6", command=self._exportar_csv).pack(side="left", padx=5)
+        # Subtítulo descriptivo (Igual al estilo de Historial de Análisis)
+        ctk.CTkLabel(self, text="Gestiona y consulta los mensajes base utilizados para el entrenamiento del modelo.",
+                     font=ctk.CTkFont(size=13), text_color="#64748b"
+                     ).pack(anchor="w", padx=30, pady=(0, 15))
 
-        # Filtros
+        # Fila única para Filtros (Izquierda) y Botones de Acción (Derecha)
         frame_filtros = ctk.CTkFrame(self, fg_color="transparent")
-        frame_filtros.pack(fill="x", padx=30, pady=(0, 10))
-        self.entry_busqueda = ctk.CTkEntry(frame_filtros, placeholder_text="🔍 Buscar...", width=300, height=36)
-        self.entry_busqueda.pack(side="left", padx=(0,10))
+        frame_filtros.pack(fill="x", padx=30, pady=(0, 15))
+
+        # --- CONTENEDOR IZQUIERDA: Búsqueda y Combo ---
+        left_container = ctk.CTkFrame(frame_filtros, fg_color="transparent")
+        left_container.pack(side="left", anchor="w")
+
+        self.entry_busqueda = ctk.CTkEntry(left_container, placeholder_text="🔍 Buscar...", width=260, height=36)
+        self.entry_busqueda.pack(side="left", padx=(0, 10))
         self.entry_busqueda.bind("<KeyRelease>", lambda e: self._cargar_datos())
-        self.combo_cat = ctk.CTkComboBox(frame_filtros, values=["Todas las categorías","fraude","sospechoso","legitimo"],
-                                          width=180, height=36, command=lambda v: self._cargar_datos())
+
+        self.combo_cat = ctk.CTkComboBox(left_container, values=["Todas las categorías","fraude","sospechoso","legitimo"],
+                                          width=160, height=36, command=lambda v: self._cargar_datos())
         self.combo_cat.pack(side="left")
+
+        # --- CONTENEDOR DERECHA: Botones de Acción (Ordenados: Nuevo -> Importar -> Exportar) ---
+        right_container = ctk.CTkFrame(frame_filtros, fg_color="transparent")
+        right_container.pack(side="right", anchor="e")
+
+        ctk.CTkButton(right_container, text="⬆ Exportar CSV", width=130, height=36,
+                      fg_color="white", text_color="#374151", border_width=1, border_color="#d1d5db",
+                      hover_color="#f3f4f6", command=self._exportar_csv).pack(side="right", padx=(5, 0))
+        ctk.CTkButton(right_container, text="⬇ Importar CSV", width=130, height=36,
+                      fg_color="white", text_color="#374151", border_width=1, border_color="#d1d5db",
+                      hover_color="#f3f4f6", command=self._importar_csv).pack(side="right", padx=5)
+        ctk.CTkButton(right_container, text="+ Nuevo Mensaje", width=140, height=36,
+                      fg_color="#1e40af", command=self._nuevo_mensaje).pack(side="right", padx=(0, 5))
 
         # Stats rápidas
         self.frame_stats = ctk.CTkFrame(self, fg_color="transparent")
@@ -109,28 +122,36 @@ class DatasetView(ctk.CTkFrame):
     def _nuevo_mensaje(self):
         ventana = ctk.CTkToplevel(self)
         ventana.title("Agregar Mensaje al Dataset")
-        ventana.geometry("500x350")
+        ventana.geometry("500x440")
         ventana.grab_set()
 
-        ctk.CTkLabel(ventana, text="Texto del mensaje:", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=20, pady=(20,5))
-        txt = ctk.CTkTextbox(ventana, height=100)
+        ctk.CTkLabel(ventana, text="Texto del mensaje:", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=20, pady=(15,5))
+        txt = ctk.CTkTextbox(ventana, height=90)
         txt.pack(fill="x", padx=20)
 
-        ctk.CTkLabel(ventana, text="Categoría:", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=20, pady=(10,5))
+        ctk.CTkLabel(ventana, text="Categoría:", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=20, pady=(8,5))
         combo = ctk.CTkComboBox(ventana, values=["fraude","sospechoso","legitimo"])
         combo.pack(anchor="w", padx=20)
 
-        ctk.CTkLabel(ventana, text="Origen:", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=20, pady=(10,5))
+        ctk.CTkLabel(ventana, text="Origen:", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=20, pady=(8,5))
         entry_origen = ctk.CTkEntry(ventana, placeholder_text="WhatsApp, SMS, Facebook...")
         entry_origen.pack(anchor="w", padx=20)
+
+        ctk.CTkLabel(ventana, text="Subcategoría:", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=20, pady=(8,5))
+        entry_subcat = ctk.CTkEntry(ventana, placeholder_text="Ej: Préstamo Dudoso, Conversación...")
+        entry_subcat.pack(anchor="w", padx=20)
 
         def guardar():
             mensaje = txt.get("0.0","end").strip()
             cat     = combo.get()
             origen  = entry_origen.get().strip() or "Manual"
+            subcat  = entry_subcat.get().strip() or ""
+            
             if not mensaje:
+                messagebox.showerror("Error", "El texto del mensaje no puede estar vacío.")
                 return
-            agregar_mensaje_dataset(mensaje, cat, origen)
+            
+            agregar_mensaje_dataset(mensaje, cat, origen, subcat)
             ventana.destroy()
             self._cargar_datos()
 
@@ -159,4 +180,5 @@ class DatasetView(ctk.CTkFrame):
             messagebox.showinfo("Exportación exitosa", f"Dataset exportado correctamente.")
 
     def on_show(self):
-        self._cargar_datos()
+        self.update_idletasks()
+        self.after(10, self._cargar_datos)
