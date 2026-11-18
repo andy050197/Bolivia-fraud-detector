@@ -1,126 +1,182 @@
+# main.py
 import sys
 import os
-
-# Para que funcione el .exe generado por PyInstaller
-if getattr(sys, 'frozen', False):
-    BASE_DIR = sys._MEIPASS
-else:
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
 import customtkinter as ctk
-from database.db import inicializar_db, cargar_csv_a_dataset, obtener_dataset
-from views.chat_detector   import ChatDetectorView
-from views.historial        import HistorialView
-from views.panel_general    import PanelGeneralView
-from views.dataset          import DatasetView
-from views.entrenar_modelo  import EntrenarModeloView
+from PIL import Image
 
-# Configuración de apariencia
+def resource_path(relative_path):
+    """Resuelve la ruta para desarrollo y para el empaquetado de PyInstaller."""
+    if getattr(sys, 'frozen', False):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_path, relative_path)
+
+from ui.theme import (
+    AZUL, AZUL_OSCURO, AZUL_SELECCION, FONDO, BLANCO, SIDEBAR_WIDTH,
+    WINDOW_DEFAULT_SIZE, WINDOW_MIN_SIZE, SIDEBAR_HOVER, FONT_FAMILY
+)
+from database.db import inicializar_db, cargar_csv_a_dataset, obtener_dataset
+from views.chat_detector import ChatDetectorView
+from views.historial import HistorialView
+from views.panel_general import PanelGeneralView
+from views.dataset import DatasetView
+from views.entrenar_modelo import EntrenarModeloView
+
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("blue")
-
-SIDEBAR_COLOR  = "#1e293b"   # Azul oscuro del mockup
-SIDEBAR_HOVER  = "#334155"
-SIDEBAR_ACTIVE = "#1e40af"
-ICON_COLOR     = "#94a3b8"
 
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("Bolivia Fraud Detector")
-        self.geometry("1100x680")
-        self.minsize(900, 580)
-        self.configure(fg_color="#f8fafc")
+        self.title("Bolivia Fraud Detector - Detección de Estafas Digitales")
+        self.geometry(WINDOW_DEFAULT_SIZE)
+        self.minsize(WINDOW_MIN_SIZE[0], WINDOW_MIN_SIZE[1])
+        self.configure(fg_color=FONDO)
 
-        # Inicializar base de datos y cargar CSV inicial
+        # Base de datos local
         inicializar_db()
-        self._cargar_dataset_inicial()
+        self._verificar_dataset_inicial()
 
         self._vista_activa = None
-        self._botones_nav  = {}
-        self._build_layout()
+        self._botones_nav = {}
+        self._iconos = {}
+
+        self._cargar_iconos()
+        self._configurar_layout()
         self._navegar("chat")
 
-    def _cargar_dataset_inicial(self):
-        """Carga el CSV inicial solo si el dataset está vacío."""
+    def _verificar_dataset_inicial(self):
         if len(obtener_dataset()) == 0:
-            csv_path = os.path.join(BASE_DIR, "data", "mensajes.csv")
+            csv_path = resource_path(os.path.join("data", "mensajes.csv"))
             if os.path.exists(csv_path):
                 cargar_csv_a_dataset(csv_path)
 
-    def _build_layout(self):
-        # ── Sidebar ──────────────────────────────────────────────
-        self.sidebar = ctk.CTkFrame(self, fg_color=SIDEBAR_COLOR, width=200, corner_radius=0)
-        self.sidebar.pack(side="left", fill="y")
-        self.sidebar.pack_propagate(False)
+    def _cargar_iconos(self):
+        icons_dir = resource_path(os.path.join("assets", "icons"))
+        items = ["message-circle", "history", "layout-grid", "database", "users"]
+        for item in items:
+            p_w = os.path.join(icons_dir, f"{item}_white.png")
+            p_a = os.path.join(icons_dir, f"{item}_active.png")
+            if os.path.exists(p_w):
+                self._iconos[f"{item}_white"] = ctk.CTkImage(Image.open(p_w), size=(20, 20))
+            if os.path.exists(p_a):
+                self._iconos[f"{item}_active"] = ctk.CTkImage(Image.open(p_a), size=(20, 20))
 
-        # Logo / título
+        p_escudo = os.path.join(icons_dir, "shield_main.png")
+        if os.path.exists(p_escudo):
+            self.img_escudo = ctk.CTkImage(Image.open(p_escudo), size=(44, 44))
+        else:
+            self.img_escudo = None
+
+    def _configurar_layout(self):
+        # Usar grid de 2 columnas: col 0 = Sidebar fijo (312px), col 1 = Contenido expandible
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=0, minsize=SIDEBAR_WIDTH)
+        self.grid_columnconfigure(1, weight=1)
+
+        # --- 1. SIDEBAR (Ancho exacto 312px, fondo AZUL) ---
+        self.sidebar = ctk.CTkFrame(self, fg_color=AZUL, width=SIDEBAR_WIDTH, corner_radius=0)
+        self.sidebar.grid(row=0, column=0, sticky="nsew")
+        self.sidebar.grid_propagate(False)
+
+        # Encabezado: Escudo y texto en dos líneas
         frame_logo = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        frame_logo.pack(fill="x", padx=15, pady=(20, 25))
-        ctk.CTkLabel(frame_logo, text="🛡", font=ctk.CTkFont(size=28), text_color="white").pack(side="left")
-        ctk.CTkLabel(frame_logo, text="Bolivia Fraud\nDetector",
-                     font=ctk.CTkFont(size=13, weight="bold"),
-                     text_color="white", justify="left").pack(side="left", padx=8)
+        frame_logo.pack(fill="x", padx=24, pady=(36, 40))
 
-        # Ítems de navegación
-        nav_items = [
-            ("chat",      "💬", "Chat Detector"),
-            ("historial", "🕐", "Historial de Análisis"),
-            ("panel",     "📊", "Panel General"),
-            ("dataset",   "🗂", "Dataset de Mensajes"),
-            ("entrenar",  "🤖", "Entrenar Modelo"),
+        if self.img_escudo:
+            lbl_ico = ctk.CTkLabel(frame_logo, image=self.img_escudo, text="")
+            lbl_ico.pack(side="left")
+        else:
+            lbl_ico = ctk.CTkLabel(frame_logo, text="🛡️", font=ctk.CTkFont(size=26))
+            lbl_ico.pack(side="left")
+
+        lbl_tit = ctk.CTkLabel(
+            frame_logo,
+            text="Bolivia Fraud\nDetector",
+            font=ctk.CTkFont(family=FONT_FAMILY, size=20, weight="bold"),
+            text_color=BLANCO,
+            justify="left"
+        )
+        lbl_tit.pack(side="left", padx=14)
+
+        # 5 Ítems de navegación ordenados según mockup
+        nav_defs = [
+            ("chat", "message-circle", "Chat Detector"),
+            ("historial", "history", "Historial de Análisis"),
+            ("panel", "layout-grid", "Panel General"),
+            ("dataset", "database", "Dataset de Mensajes"),
+            ("entrenar", "users", "Entrenar Modelo"),
         ]
-        for key, icon, label in nav_items:
+
+        for clave, icon_name, label in nav_defs:
             btn = ctk.CTkButton(
                 self.sidebar,
-                text=f" {icon}  {label}",
+                text=f"  {label}",
+                image=self._iconos.get(f"{icon_name}_white"),
+                compound="left",
                 anchor="w",
-                font=ctk.CTkFont(size=13),
+                font=ctk.CTkFont(family=FONT_FAMILY, size=16),
                 fg_color="transparent",
-                text_color="#cbd5e1",
+                text_color=BLANCO,
                 hover_color=SIDEBAR_HOVER,
-                height=42,
-                corner_radius=8,
-                command=lambda k=key: self._navegar(k)
+                height=48,
+                corner_radius=10,
+                command=lambda c=clave: self._navegar(c)
             )
-            btn.pack(fill="x", padx=10, pady=2)
-            self._botones_nav[key] = btn
+            btn.pack(fill="x", padx=20, pady=4)
+            self._botones_nav[clave] = (btn, icon_name)
 
-        # ── Área de contenido ─────────────────────────────────────
-        self.frame_contenido = ctk.CTkFrame(self, fg_color="white", corner_radius=0)
-        self.frame_contenido.pack(side="right", fill="both", expand=True)
+        # --- 2. CONTENEDOR DE CONTENIDO (Fondo FONDO #F8FAFC) ---
+        self.contenedor_principal = ctk.CTkFrame(self, fg_color=FONDO, corner_radius=0)
+        self.contenedor_principal.grid(row=0, column=1, sticky="nsew")
+        self.contenedor_principal.grid_rowconfigure(0, weight=1)
+        self.contenedor_principal.grid_columnconfigure(0, weight=1)
 
-        # Instanciar todas las vistas
+        # Inicializar vistas usando grid para preservar estado sin reconstruir
         self._vistas = {
-            "chat":      ChatDetectorView(self.frame_contenido),
-            "historial": HistorialView(self.frame_contenido),
-            "panel":     PanelGeneralView(self.frame_contenido),
-            "dataset":   DatasetView(self.frame_contenido),
-            "entrenar":  EntrenarModeloView(self.frame_contenido),
+            "chat": ChatDetectorView(self.contenedor_principal),
+            "historial": HistorialView(self.contenedor_principal),
+            "panel": PanelGeneralView(self.contenedor_principal),
+            "dataset": DatasetView(self.contenedor_principal),
+            "entrenar": EntrenarModeloView(self.contenedor_principal),
         }
 
-    def _navegar(self, key: str):
-        # Ocultar vista actual
+        for vista in self._vistas.values():
+            vista.grid(row=0, column=0, sticky="nsew")
+            vista.grid_remove()  # ocultas inicialmente
+
+    def _navegar(self, clave_vista: str):
+        # 1. Ocultar la vista anterior
         if self._vista_activa and self._vista_activa in self._vistas:
-            self._vistas[self._vista_activa].pack_forget()
+            self._vistas[self._vista_activa].grid_remove()
 
-        # Resetear estilos de botones
-        for k, btn in self._botones_nav.items():
-            btn.configure(fg_color="transparent", text_color="#cbd5e1")
+        # 2. Desactivar estilo visual de todos los botones
+        for k, (btn, icon_name) in self._botones_nav.items():
+            btn.configure(
+                fg_color="transparent",
+                text_color=BLANCO,
+                image=self._iconos.get(f"{icon_name}_white")
+            )
 
-        # Activar nuevo botón
-        self._botones_nav[key].configure(fg_color=SIDEBAR_ACTIVE, text_color="white")
+        # 3. Resaltar botón activo con AZUL_SELECCION (#CFE5FB) y texto AZUL_OSCURO
+        btn_act, icon_act = self._botones_nav[clave_vista]
+        btn_act.configure(
+            fg_color=AZUL_SELECCION,
+            text_color=AZUL_OSCURO,
+            image=self._iconos.get(f"{icon_act}_active")
+        )
 
-        # Mostrar nueva vista
-        self._vistas[key].pack(fill="both", expand=True)
+        # 4. Mostrar la vista seleccionada elevándola
+        vista = self._vistas[clave_vista]
+        vista.grid()
+        vista.tkraise()
 
-        # Llamar hook on_show si existe (para actualizar datos)
-        vista = self._vistas[key]
+        # 5. Notificar hook on_show si la vista lo implementa
         if hasattr(vista, "on_show"):
             vista.on_show()
 
-        self._vista_activa = key
-
+        self._vista_activa = clave_vista
 
 if __name__ == "__main__":
     app = App()
