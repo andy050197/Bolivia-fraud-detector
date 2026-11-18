@@ -4,6 +4,7 @@ import sqlite3
 from datetime import datetime
 
 import customtkinter as ctk
+from ui.theme import AZUL, BLANCO, SIDEBAR_HOVER
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.ticker import MaxNLocator
@@ -41,7 +42,7 @@ class PanelGeneralView(ctk.CTkFrame):
         cabecera.grid(row=1, column=0, sticky="ew", padx=24, pady=(0, 16))
         cabecera.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(cabecera, text="Detector de fraudes digitales en español boliviano", text_color="#64748b").grid(row=0, column=0, sticky="w")
-        ctk.CTkButton(cabecera, text="Actualizar", width=105, command=self._actualizar).grid(row=0, column=1)
+        ctk.CTkButton(cabecera, text="Actualizar", fg_color=AZUL, hover_color=SIDEBAR_HOVER, text_color=BLANCO, width=105, command=self._actualizar).grid(row=0, column=1)
         tarjetas = ctk.CTkFrame(self, fg_color="transparent")
         tarjetas.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 16))
         for columna in range(4):
