@@ -1,0 +1,31 @@
+mensaje,categoria,origen,subcategoria
+"Felicidades has ganado Bs 5000. Para reclamar deposita Bs 150 por QR y envía tu comprobante.",fraude,WhatsApp,Premio Falso
+"Yapeame Bs 150 urgente para liberar tu encomienda en la aduana.",fraude,WhatsApp,Encomienda Falsa
+"Tu cuenta bancaria será suspendida ingresa al enlace: tinyurl.com/banco-seguro",fraude,SMS,Phishing Bancario
+"Felicidades ganaste Bs 5000 por sorteo de Entel. Paga Bs 20 para el envío.",fraude,SMS,Premio Falso
+"Hola soy del Banco Unión. Tu tarjeta fue bloqueada. Llama urgente al 800-XXXX.",fraude,WhatsApp,Phishing Bancario
+"Inversión segura 30% mensual garantizado. Envía tu QR para comenzar.",fraude,WhatsApp,Inversión Falsa
+"Tu paquete de correo tiene un saldo pendiente. Ingresa a: bit.ly/correo-bo",fraude,SMS,Phishing Correo
+"Ganaste un iPhone 15. Solo paga el envío de Bs 50 por Tigo Money.",fraude,WhatsApp,Premio Falso
+"URGENTE: Tu Billetera Móvil fue comprometida. Verifica tus datos aquí: link.bo/seguro",fraude,SMS,Phishing Bancario
+"Trabajo desde casa ganando Bs 3000 diarios. Solo deposita Bs 200 de inscripción.",fraude,Facebook,Trabajo Falso
+"Hola nos vemos mañana en la UMSS a las 10.",legitimo,WhatsApp,Conversacion
+"Hola hermano nos vemos en la facultad a las 2.",legitimo,WhatsApp,Conversacion
+"El partido empieza a las 8 de la noche no llegues tarde.",legitimo,WhatsApp,Conversacion
+"Mamá ya llegué bien al trabajo.",legitimo,WhatsApp,Conversacion
+"El banco informa: Su pago de cuota fue registrado correctamente. Gracias.",legitimo,SMS,Notificacion Banco
+"Recordatorio: Su cita médica es mañana a las 9am en la clínica.",legitimo,SMS,Recordatorio
+"Entel: Su recarga de Bs 20 fue exitosa. Saldo disponible Bs 25.50",legitimo,SMS,Notificacion Operadora
+"Hola te paso los apuntes de la clase de hoy.",legitimo,WhatsApp,Conversacion
+"El mercado abre a las 7 mañana por si quieres ir temprano.",legitimo,WhatsApp,Conversacion
+"Tigo Money: Recibiste Bs 100 de Juan Perez. Saldo: Bs 250.",legitimo,SMS,Notificacion Billetera
+"Te ofrecemos préstamo rápido sin garante escribe al +591XXXXXXXX",sospechoso,WhatsApp,Prestamo Dudoso
+"Gana dinero fácil trabajando desde tu celular. Más info escríbenos.",sospechoso,Facebook,Trabajo Dudoso
+"Vendo iPhone 14 nuevo en caja Bs 1500 negociable. Delivery gratis.",sospechoso,Facebook,Venta Dudosa
+"Inversión en criptomonedas con retorno garantizado. Únete a nuestro grupo.",sospechoso,WhatsApp,Inversion Dudosa
+"Necesito persona de confianza para manejar transferencias internacionales. Pago comisión.",sospechoso,WhatsApp,Trabajo Dudoso
+"Préstamo inmediato sin burocracia hasta Bs 10000. Solo necesitas tu CI.",sospechoso,SMS,Prestamo Dudoso
+"Sorteo de celulares Samsung. Participa gratis dando like y compartiendo.",sospechoso,Facebook,Premio Dudoso
+"Venta de pasajes La Paz-Santa Cruz Bs 80 solo hoy. Paga por adelantado.",sospechoso,WhatsApp,Venta Dudosa
+"Tu número fue seleccionado para recibir un bono del gobierno. Regístrate.",sospechoso,SMS,Bono Dudoso
+"Negocio rentable busca socio capitalista. Inversión mínima Bs 500.",sospechoso,WhatsApp,Inversion Dudosa
