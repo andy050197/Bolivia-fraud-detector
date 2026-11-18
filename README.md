@@ -1,43 +1,54 @@
 # Bolivia Fraud Detector
 
-> Detector de estafas y fraudes digitales en **español boliviano** — WhatsApp, SMS y redes sociales.
+Detector de estafas y fraudes digitales en español boliviano — WhatsApp, SMS y redes sociales.
 
 ---
 
+<<<<<<< HEAD
 ## Descripción
+=======
+## Descripcion
+>>>>>>> origin/develop
 
-Bolivia Fraud Detector es una aplicación de escritorio (`.exe`) que clasifica mensajes de texto como **Fraude**, **Sospechoso** o **Legítimo**, usando Machine Learning entrenado con patrones de estafas reales en español boliviano (premios falsos, phishing bancario, encomiendas falsas, Yape/Tigo Money fraudulento, etc.).
+Bolivia Fraud Detector es una aplicacion de escritorio (.exe) que clasifica mensajes de texto como Fraude, Sospechoso o Legitimo, usando Machine Learning entrenado con patrones de estafas reales en espanol boliviano (premios falsos, phishing bancario, encomiendas falsas, Yape/Tigo Money fraudulento, etc.).
 
 ---
 
 ## Pantallas del sistema
 
-| Pantalla | Descripción |
+| Pantalla | Descripcion |
 |---|---|
-| **Chat Detector** | Pega un mensaje y recibe clasificación + indicadores + recomendación |
-| **Historial de Análisis** | Registro anonimizado de todos los mensajes evaluados (SQLite) |
-| **Panel General** | Dashboard con estadísticas y estado del modelo activo |
-| **Dataset de Mensajes** | Corpus de entrenamiento: agregar, importar CSV, exportar |
-| **Entrenar Modelo** | Compara SVM, Naive Bayes, Regresión Logística y Random Forest |
+| Chat Detector | Pega un mensaje y recibe clasificacion + indicadores + recomendacion |
+| Historial de Analisis | Registro anonimizado de todos los mensajes evaluados (SQLite) |
+| Panel General | Dashboard con estadisticas y estado del modelo activo |
+| Dataset de Mensajes | Corpus de entrenamiento: agregar, importar CSV, exportar |
+| Entrenar Modelo | Compara SVM, Naive Bayes, Regresion Logistica y Random Forest |
 
 ---
 
 ## Requisitos
 
+<<<<<<< HEAD
 - **Python 3.11** → [Descargar aquí](https://python.org/downloads) (marcar "Add Python to PATH")
+=======
+- Python 3.11 — Descargar en: https://python.org/downloads (marcar "Add Python to PATH" al instalar)
+>>>>>>> origin/develop
 - Windows 10/11
 
 ---
 
+<<<<<<< HEAD
 ## Instalación rápida
+=======
+## Instalacion rapida
+>>>>>>> origin/develop
 
-### Opción A — Script automático (recomendado)
+### Opcion A — Script automatico (recomendado)
 ```bash
-# Doble clic en:
 instalar.bat
 ```
 
-### Opción B — Manual
+### Opcion B — Manual
 ```bash
 git clone [https://github.com/andy050197/bolivia-fraud-detector.git](https://github.com/andy050197/bolivia-fraud-detector.git)
 cd bolivia-fraud-detector
@@ -49,27 +60,35 @@ python main.py
 
 ## Compilar el .exe
 
-Para generar el ejecutable standalone (sin necesidad de Python):
+Para generar el ejecutable standalone (sin necesidad de Python instalado):
 
 ```bash
-# Doble clic en:
 compilar_exe.bat
+```
 
-# O manualmente:
+O manualmente:
+
+```bash
 pyinstaller --onefile --windowed --name BoliviaFraudDetector --add-data "data;data" --add-data "assets;assets" main.py
 ```
 
-El archivo `BoliviaFraudDetector.exe` aparecerá en la carpeta `dist/`.
+El archivo BoliviaFraudDetector.exe aparecera en la carpeta dist/.
 
 ---
 
 ## Algoritmos de ML disponibles
 
-| Algoritmo | F1-Score típico | Notas |
+| Algoritmo | F1-Score tipico | Notas |
 |---|---|---|
+<<<<<<< HEAD
 | **SVM (TF-IDF)** | ~92% | Mejor resultado — modelo por defecto |
 | Random Forest | ~89% | Alta precisión, más lento |
 | Regresión Logística | ~86% | Rápido y confiable |
+=======
+| SVM (TF-IDF) | ~92% | Mejor resultado, modelo por defecto |
+| Random Forest | ~89% | Alta precision, mas lento |
+| Regresion Logistica | ~86% | Rapido y confiable |
+>>>>>>> origin/develop
 | Naive Bayes | ~78% | Muy ligero |
 
 ---
@@ -80,7 +99,7 @@ El archivo `BoliviaFraudDetector.exe` aparecerá en la carpeta `dist/`.
 bolivia-fraud-detector/
 ├── main.py                  # Punto de entrada
 ├── requirements.txt         # Dependencias Python
-├── instalar.bat             # Instalador automático
+├── instalar.bat             # Instalador automatico
 ├── compilar_exe.bat         # Generador del .exe
 ├── views/
 │   ├── chat_detector.py
@@ -89,13 +108,13 @@ bolivia-fraud-detector/
 │   ├── dataset.py
 │   └── entrenar_modelo.py
 ├── ml/
-│   ├── trainer.py           # Entrenamiento y comparación de modelos
-│   └── predictor.py         # Clasificación de mensajes nuevos
+│   ├── trainer.py           # Entrenamiento y comparacion de modelos
+│   └── predictor.py         # Clasificacion de mensajes nuevos
 ├── database/
-│   └── db.py                # SQLite — historial y dataset
+│   └── db.py                # SQLite - historial y dataset
 ├── data/
 │   └── mensajes.csv         # Dataset inicial de fraudes bolivianos
-└── assets/                  # Imágenes y recursos
+└── assets/                  # Imagenes y recursos
 ```
 
 ---
@@ -103,21 +122,20 @@ bolivia-fraud-detector/
 ## Contribuir
 
 1. Haz fork del repositorio
-2. Crea tu rama: `git checkout -b feature/mi-mejora`
-3. Haz commit: `git commit -m "Agrego nuevos mensajes de fraude"`
-4. Push: `git push origin feature/mi-mejora`
+2. Crea tu rama: git checkout -b feature/mi-mejora
+3. Haz commit: git commit -m "Agrego nuevos mensajes de fraude"
+4. Push: git push origin feature/mi-mejora
 5. Abre un Pull Request
 
-### ¿Cómo agregar más mensajes al dataset?
-- Desde la app: pestaña **Dataset de Mensajes → + Nuevo Mensaje**
-- Desde CSV: **Dataset de Mensajes → Importar CSV** (columnas: `mensaje, categoria, origen, subcategoria`)
+Como agregar mas mensajes al dataset:
+- Desde la app: pestana Dataset de Mensajes, boton Nuevo Mensaje
+- Desde CSV: Dataset de Mensajes, boton Importar CSV (columnas: mensaje, categoria, origen, subcategoria)
 
 ---
 
 ## Licencia
 
-MIT License — libre para uso educativo y académico.
+MIT License - libre para uso educativo y academico.
 
----
+Proyecto desarrollado para el curso de Inteligencia Artificial - Universidad Mayor de San Simon, Bolivia
 
-Proyecto desarrollado para el curso de Inteligencia Artificial — Universidad Mayor de San Simón, Bolivia
