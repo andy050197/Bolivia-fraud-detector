@@ -5,6 +5,7 @@ import sqlite3
 from tkinter import messagebox, ttk
 
 import customtkinter as ctk
+from ui.theme import AZUL, BLANCO, SIDEBAR_HOVER
 from PIL import Image, ImageDraw, ImageTk
 from database.db import obtener_historial, eliminar_historial_item, limpiar_historial
 
@@ -98,9 +99,9 @@ class HistorialView(ctk.CTkFrame):
                                        width=180, height=36, command=lambda value: self._cargar_datos())
         self.combo_cat.set("Todas las categorías")
         self.combo_cat.grid(row=0, column=1)
-        ctk.CTkButton(filtros, text="Restablecer", width=110, height=36,
+        ctk.CTkButton(filtros, text="Restablecer", fg_color=AZUL, hover_color=SIDEBAR_HOVER, text_color=BLANCO, width=110, height=36,
                        command=self._restablecer).grid(row=1, column=0, sticky="w", pady=(10, 0))
-        ctk.CTkButton(filtros, text="Actualizar", width=110, height=36,
+        ctk.CTkButton(filtros, text="Actualizar", fg_color=AZUL, hover_color=SIDEBAR_HOVER, text_color=BLANCO, width=110, height=36,
                        command=self._cargar_datos).grid(row=1, column=1, sticky="e", pady=(10, 0))
 
         self.btn_limpiar = ctk.CTkButton(filtros, text="Limpiar historial", width=130,
@@ -256,7 +257,7 @@ class HistorialView(ctk.CTkFrame):
         contenido.configure(state="disabled")
         ctk.CTkLabel(ventana, text="Se muestra solo el texto guardado: anonimizado y limitado a 80 caracteres\n(más puntos suspensivos). El mensaje original no se conserva.",
                      justify="left", wraplength=500, text_color="#64748b").grid(row=3, column=0, padx=20, sticky="w")
-        ctk.CTkButton(ventana, text="Cerrar", command=ventana.destroy).grid(row=4, column=0, padx=20, pady=16, sticky="e")
+        ctk.CTkButton(ventana, text="Cerrar", fg_color=AZUL, hover_color=SIDEBAR_HOVER, text_color=BLANCO, command=ventana.destroy).grid(row=4, column=0, padx=20, pady=16, sticky="e")
         ventana.bind("<Escape>", lambda event: ventana.destroy())
 
     def _eliminar(self):
