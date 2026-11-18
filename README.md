@@ -1,16 +1,16 @@
-#  Bolivia Fraud Detector
+# Bolivia Fraud Detector
 
 > Detector de estafas y fraudes digitales en **español boliviano** — WhatsApp, SMS y redes sociales.
 
 ---
 
-##  Descripción
+## Descripción
 
 Bolivia Fraud Detector es una aplicación de escritorio (`.exe`) que clasifica mensajes de texto como **Fraude**, **Sospechoso** o **Legítimo**, usando Machine Learning entrenado con patrones de estafas reales en español boliviano (premios falsos, phishing bancario, encomiendas falsas, Yape/Tigo Money fraudulento, etc.).
 
 ---
 
-##  Pantallas del sistema
+## Pantallas del sistema
 
 | Pantalla | Descripción |
 |---|---|
@@ -22,14 +22,14 @@ Bolivia Fraud Detector es una aplicación de escritorio (`.exe`) que clasifica m
 
 ---
 
-##  Requisitos
+## Requisitos
 
-- **Python 3.11** → [Descargar aquí](https://python.org/downloads) *(marcar "Add Python to PATH")*
+- **Python 3.11** → [Descargar aquí](https://python.org/downloads) (marcar "Add Python to PATH")
 - Windows 10/11
 
 ---
 
-##  Instalación rápida
+## Instalación rápida
 
 ### Opción A — Script automático (recomendado)
 ```bash
@@ -39,7 +39,7 @@ instalar.bat
 
 ### Opción B — Manual
 ```bash
-git clone https://github.com/andy050197/bolivia-fraud-detector.git
+git clone [https://github.com/andy050197/bolivia-fraud-detector.git](https://github.com/andy050197/bolivia-fraud-detector.git)
 cd bolivia-fraud-detector
 pip install -r requirements.txt
 python main.py
@@ -47,7 +47,7 @@ python main.py
 
 ---
 
-##  Compilar el .exe
+## Compilar el .exe
 
 Para generar el ejecutable standalone (sin necesidad de Python):
 
@@ -63,18 +63,18 @@ El archivo `BoliviaFraudDetector.exe` aparecerá en la carpeta `dist/`.
 
 ---
 
-##  Algoritmos de ML disponibles
+## Algoritmos de ML disponibles
 
 | Algoritmo | F1-Score típico | Notas |
 |---|---|---|
-| **SVM (TF-IDF)** | ~92% |  Mejor resultado — modelo por defecto |
+| **SVM (TF-IDF)** | ~92% | Mejor resultado — modelo por defecto |
 | Random Forest | ~89% | Alta precisión, más lento |
 | Regresión Logística | ~86% | Rápido y confiable |
 | Naive Bayes | ~78% | Muy ligero |
 
 ---
 
-##  Estructura del proyecto
+## Estructura del proyecto
 
 ```
 bolivia-fraud-detector/
@@ -100,7 +100,7 @@ bolivia-fraud-detector/
 
 ---
 
-##  Contribuir
+## Contribuir
 
 1. Haz fork del repositorio
 2. Crea tu rama: `git checkout -b feature/mi-mejora`
@@ -114,10 +114,10 @@ bolivia-fraud-detector/
 
 ---
 
-##  Licencia
+## Licencia
 
 MIT License — libre para uso educativo y académico.
 
 ---
 
-*Proyecto desarrollado para el curso de Inteligencia Artificial — Universidad Mayor de San Simón, Bolivia 🇧🇴*
+Proyecto desarrollado para el curso de Inteligencia Artificial — Universidad Mayor de San Simón, Bolivia
