@@ -1,7 +1,8 @@
 @echo off
-echo ============================================
+cd /d "%~dp0"
+echo =========================================
 echo   Bolivia Fraud Detector - Instalador
-echo ============================================
+echo =========================================
 echo.
 
 REM Verificar Python
@@ -17,7 +18,7 @@ IF ERRORLEVEL 1 (
 echo [OK] Python encontrado.
 echo.
 echo Instalando dependencias...
-pip install -r requirements.txt
+python -m pip install --no-cache-dir -r requirements.txt
 
 IF ERRORLEVEL 1 (
     echo [ERROR] Fallo la instalacion de dependencias.
@@ -28,7 +29,7 @@ IF ERRORLEVEL 1 (
 echo.
 echo [OK] Instalacion completada!
 echo.
-echo Para ejecutar el programa: python main.py
-echo Para compilar el .exe:     pyinstaller --onefile --windowed --name BoliviaFraudDetector main.py
+echo Para ejecutar el programa: doble clic en ejecutar.bat (o python main.py)
+echo Para compilar el .exe:      doble clic en compilar_exe.bat
 echo.
 pause

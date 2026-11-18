@@ -2,15 +2,13 @@
 
 Detector de estafas y fraudes digitales en español boliviano — WhatsApp, SMS y redes sociales.
 
-![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)
-![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-orange?logo=scikit-learn)
-![CustomTkinter](https://img.shields.io/badge/UI-CustomTkinter-green)
-![SQLite](https://img.shields.io/badge/DB-SQLite-lightblue)
-![License](https://img.shields.io/badge/License-MIT-yellow)
-
 ---
 
+<<<<<<< HEAD
+## Descripción
+=======
 ## Descripcion
+>>>>>>> origin/develop
 
 Bolivia Fraud Detector es una aplicacion de escritorio (.exe) que clasifica mensajes de texto como Fraude, Sospechoso o Legitimo, usando Machine Learning entrenado con patrones de estafas reales en espanol boliviano (premios falsos, phishing bancario, encomiendas falsas, Yape/Tigo Money fraudulento, etc.).
 
@@ -30,12 +28,20 @@ Bolivia Fraud Detector es una aplicacion de escritorio (.exe) que clasifica mens
 
 ## Requisitos
 
+<<<<<<< HEAD
+- **Python 3.11** → [Descargar aquí](https://python.org/downloads) (marcar "Add Python to PATH")
+=======
 - Python 3.11 — Descargar en: https://python.org/downloads (marcar "Add Python to PATH" al instalar)
+>>>>>>> origin/develop
 - Windows 10/11
 
 ---
 
+<<<<<<< HEAD
+## Instalación rápida
+=======
 ## Instalacion rapida
+>>>>>>> origin/develop
 
 ### Opcion A — Script automatico (recomendado)
 ```bash
@@ -44,7 +50,7 @@ instalar.bat
 
 ### Opcion B — Manual
 ```bash
-git clone https://github.com/andy050197/bolivia-fraud-detector.git
+git clone [https://github.com/andy050197/bolivia-fraud-detector.git](https://github.com/andy050197/bolivia-fraud-detector.git)
 cd bolivia-fraud-detector
 pip install -r requirements.txt
 python main.py
@@ -74,9 +80,15 @@ El archivo BoliviaFraudDetector.exe aparecera en la carpeta dist/.
 
 | Algoritmo | F1-Score tipico | Notas |
 |---|---|---|
+<<<<<<< HEAD
+| **SVM (TF-IDF)** | ~92% | Mejor resultado — modelo por defecto |
+| Random Forest | ~89% | Alta precisión, más lento |
+| Regresión Logística | ~86% | Rápido y confiable |
+=======
 | SVM (TF-IDF) | ~92% | Mejor resultado, modelo por defecto |
 | Random Forest | ~89% | Alta precision, mas lento |
 | Regresion Logistica | ~86% | Rapido y confiable |
+>>>>>>> origin/develop
 | Naive Bayes | ~78% | Muy ligero |
 
 ---
@@ -125,6 +137,5 @@ Como agregar mas mensajes al dataset:
 
 MIT License - libre para uso educativo y academico.
 
----
-
 Proyecto desarrollado para el curso de Inteligencia Artificial - Universidad Mayor de San Simon, Bolivia
+
