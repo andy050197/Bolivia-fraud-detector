@@ -1,21 +1,28 @@
 # views/chat_detector.py
+"""
+Módulo 1: Chat Detector - Análisis de Mensajes.
+Uniformado con las Reglas Globales (Prompt 2).
+"""
+
 import os
 import customtkinter as ctk
 from PIL import Image
 
 from ui.theme import (
-    AZUL, AZUL_OSCURO, FONDO, BLANCO, BORDE, TEXTO, TEXTO_MUTED,
-    ROJO, ROJO_CLARO, AMBAR, AMBAR_CLARO, VERDE, VERDE_CLARO,
-    GRIS_BURBUJA, FONT_FAMILY, RADIUS_CARD, RADIUS_PILL, RADIUS_INPUT
+    AZUL, AZUL_OSCURO, AZUL_SELECCION, FONDO, BLANCO, BORDE, TEXTO, TEXTO_MUTED,
+    ROJO, ROJO_CLARO, AMBAR, AMBAR_CLARO, VERDE, VERDE_CLARO, GRIS_BURBUJA,
+    FONT_FAMILY, FONT_PAGE_TITLE, FONT_SUBTITLE, FONT_BODY, FONT_BODY_BOLD,
+    FONT_BUTTON, BORDER_WIDTH, RADIUS_CARD, RADIUS_INPUT, RADIUS_PILL,
+    BADGE_HEIGHT_CHAT, BTN_HEIGHT_TOOL
 )
-from ui.components import crear_header_vista
+from ui.components import PageHeader, Badge, BotonPrimario, BotonContorno
 from ml.predictor import analizar_mensaje
 from database.db import guardar_analisis
 
 EJEMPLOS = [
     ("Ejemplo: Premio falso", "Felicidades, has ganado Bs 5.000. Para reclamar tu premio debes realizar un depósito de Bs 150 por QR y enviar tu comprobante."),
-    ("Ejemplo: Mensaje normal", "Hola hermano, nos vemos en la facultad a las 2."),
-    ("Ejemplo: Bloqueo de cuenta", "URGENTE BANCO UNION: Su cuenta será suspendida por seguridad. Ingrese a tinyurl.com/banco-seguro para verificar sus datos hoy.")
+    ("Ejemplo: Préstamo dudoso", "Te ofrecemos préstamo rápido sin garante ni burocracia hasta Bs 10000. Solo necesitas tu CI."),
+    ("Ejemplo: Mensaje normal", "Hola hermano, nos vemos en la facultad a las 2.")
 ]
 
 class ChatDetectorView(ctk.CTkFrame):
@@ -27,19 +34,19 @@ class ChatDetectorView(ctk.CTkFrame):
     def _cargar_avatar(self):
         avatar_path = os.path.join(os.path.dirname(__file__), "..", "assets", "icons", "avatar_shield.png")
         if os.path.exists(avatar_path):
-            self.img_avatar = ctk.CTkImage(Image.open(avatar_path), size=(36, 36))
+            self.img_avatar = ctk.CTkImage(Image.open(avatar_path), size=(40, 40))
         else:
             self.img_avatar = None
 
     def _build_ui(self):
         # 1. Encabezado Oficial
-        crear_header_vista(
+        PageHeader(
             self,
             titulo="Chat Detector - Análisis de Mensajes",
             subtitulo="Pega un mensaje sospechoso de WhatsApp, SMS o redes sociales para evaluar su riesgo"
         )
 
-        # 2. Fila de 3 Botones Píldora (Borde 2px AZUL, texto AZUL_OSCURO, radio 20)
+        # 2. Fila de 3 Botones de Ejemplo (Borde 2px AZUL, texto AZUL_OSCURO bold 16px, radio 20)
         frame_pildoras = ctk.CTkFrame(self, fg_color="transparent")
         frame_pildoras.pack(fill="x", padx=40, pady=(0, 16))
 
@@ -47,17 +54,17 @@ class ChatDetectorView(ctk.CTkFrame):
             btn = ctk.CTkButton(
                 frame_pildoras,
                 text=etiqueta,
-                height=40,
+                height=BTN_HEIGHT_TOOL,
                 corner_radius=RADIUS_PILL,
                 fg_color="transparent",
-                border_width=2,
+                border_width=BORDER_WIDTH,
                 border_color=AZUL,
                 text_color=AZUL_OSCURO,
                 hover_color="#E0E7FF",
-                font=ctk.CTkFont(family=FONT_FAMILY, size=14, weight="bold"),
+                font=ctk.CTkFont(family=FONT_BUTTON[0], size=FONT_BUTTON[1], weight=FONT_BUTTON[2]),
                 command=lambda t=contenido: self._cargar_ejemplo(t)
             )
-            btn.pack(side="left", padx=(0, 14))
+            btn.pack(side="left", padx=(0, 12))
 
         # 3. Área de Conversación con Scroll transparente
         self.scroll_chat = ctk.CTkScrollableFrame(
@@ -65,7 +72,7 @@ class ChatDetectorView(ctk.CTkFrame):
             fg_color="transparent",
             corner_radius=0,
             scrollbar_button_color="#CBD5E1",
-            scrollbar_button_hover_color="#94A3B8"
+            scrollbar_button_hover_color=AZUL
         )
         self.scroll_chat.pack(fill="both", expand=True, padx=40, pady=(0, 10))
 
@@ -73,8 +80,8 @@ class ChatDetectorView(ctk.CTkFrame):
         self.lbl_placeholder = ctk.CTkLabel(
             self.scroll_chat,
             text="El análisis aparecerá aquí...",
-            text_color="#94A3B8",
-            font=ctk.CTkFont(family=FONT_FAMILY, size=14)
+            text_color=TEXTO_MUTED,
+            font=ctk.CTkFont(family=FONT_BODY[0], size=FONT_BODY[1])
         )
         self.lbl_placeholder.pack(pady=90)
 
@@ -86,26 +93,22 @@ class ChatDetectorView(ctk.CTkFrame):
             frame_barra_inferior,
             height=48,
             corner_radius=RADIUS_INPUT,
-            border_width=2,
+            border_width=BORDER_WIDTH,
             border_color="#93C5FD",
             fg_color=BLANCO,
             text_color=TEXTO,
             placeholder_text="Escribe o pega aquí el mensaje sospechoso...",
-            placeholder_text_color="#94A3B8",
-            font=ctk.CTkFont(family=FONT_FAMILY, size=13)
+            placeholder_text_color=TEXTO_MUTED,
+            font=ctk.CTkFont(family=FONT_BODY[0], size=16)
         )
-        self.entry_mensaje.pack(side="left", fill="x", expand=True, padx=(0, 14))
+        self.entry_mensaje.pack(side="left", fill="x", expand=True, padx=(0, 12))
         self.entry_mensaje.bind("<Return>", lambda e: self._ejecutar_analisis())
 
-        btn_analizar = ctk.CTkButton(
+        btn_analizar = BotonPrimario(
             frame_barra_inferior,
             text="Analizar",
-            width=120,
+            width=130,
             height=48,
-            corner_radius=RADIUS_INPUT,
-            fg_color=AZUL,
-            hover_color="#1E40AF",
-            font=ctk.CTkFont(family=FONT_FAMILY, size=14, weight="bold"),
             command=self._ejecutar_analisis
         )
         btn_analizar.pack(side="right")
@@ -114,8 +117,8 @@ class ChatDetectorView(ctk.CTkFrame):
         lbl_aviso = ctk.CTkLabel(
             self,
             text="Herramienta preventiva de apoyo. Verifica cualquier comunicación sospechosa a través de canales oficiales.",
-            font=ctk.CTkFont(family=FONT_FAMILY, size=11),
-            text_color="#94A3B8"
+            font=ctk.CTkFont(family=FONT_BODY[0], size=12),
+            text_color=TEXTO_MUTED
         )
         lbl_aviso.pack(padx=40, pady=(0, 14), anchor="w")
 
@@ -129,10 +132,8 @@ class ChatDetectorView(ctk.CTkFrame):
         if not texto or texto == "Escribe o pega aquí el mensaje sospechoso...":
             return
 
-        # Limpiar automáticamente la caja de entrada de texto
         self.entry_mensaje.delete(0, "end")
 
-        # Análisis real de ML
         resultado = analizar_mensaje(texto)
         guardar_analisis(
             texto,
@@ -144,7 +145,6 @@ class ChatDetectorView(ctk.CTkFrame):
         self._renderizar_resultado(texto, resultado)
 
     def _renderizar_resultado(self, texto_usuario: str, res: dict):
-        # Limpiar área de scroll
         for widget in self.scroll_chat.winfo_children():
             widget.destroy()
 
@@ -152,17 +152,14 @@ class ChatDetectorView(ctk.CTkFrame):
         if cat == "fraude":
             color_tema = ROJO
             fondo_card = ROJO_CLARO
-            titulo_badge = "CLASIFICACIÓN: FRAUDE"
         elif cat == "sospechoso":
             color_tema = AMBAR
             fondo_card = AMBAR_CLARO
-            titulo_badge = "CLASIFICACIÓN: SOSPECHOSO"
         else:
             color_tema = VERDE
             fondo_card = VERDE_CLARO
-            titulo_badge = "CLASIFICACIÓN: LEGÍTIMO"
 
-        # --- A. MENSAJE DEL USUARIO (Alineado a la DERECHA, gris burbuja #7F848E, texto blanco) ---
+        # --- A. MENSAJE DEL USUARIO (Alineado a la DERECHA, gris burbuja) ---
         frame_msg_wrap = ctk.CTkFrame(self.scroll_chat, fg_color="transparent")
         frame_msg_wrap.pack(fill="x", pady=(10, 16))
 
@@ -177,60 +174,54 @@ class ChatDetectorView(ctk.CTkFrame):
             burbuja_usuario,
             text=texto_usuario,
             wraplength=520,
-            font=ctk.CTkFont(family=FONT_FAMILY, size=13),
+            font=ctk.CTkFont(family=FONT_BODY[0], size=16),
             text_color=BLANCO,
             justify="left"
         ).pack(padx=18, pady=12)
 
-        # --- B. RESPUESTA DEL SISTEMA (Alineada a la IZQUIERDA con avatar circular al lado) ---
+        # --- B. RESPUESTA DEL SISTEMA (Alineada a la IZQUIERDA con avatar) ---
         frame_resp_wrap = ctk.CTkFrame(self.scroll_chat, fg_color="transparent")
         frame_resp_wrap.pack(fill="x", pady=(0, 20))
 
-        # Avatar circular con escudo
         if self.img_avatar:
             lbl_avatar = ctk.CTkLabel(frame_resp_wrap, image=self.img_avatar, text="")
             lbl_avatar.pack(side="left", anchor="n", padx=(10, 12), pady=6)
 
-        # Tarjeta de resultado con franja izquierda de 6px
+        # Tarjeta exterior de resultado con borde y radio
         card_exterior = ctk.CTkFrame(
             frame_resp_wrap,
             fg_color=fondo_card,
+            border_width=BORDER_WIDTH,
+            border_color=color_tema,
             corner_radius=RADIUS_CARD
         )
         card_exterior.pack(side="left", fill="x", padx=(0, 100))
 
-        # Franja vertical izquierda de 6px del color del riesgo
+        # Franja vertical izquierda de 6px
         franja_lateral = ctk.CTkFrame(card_exterior, fg_color=color_tema, width=6, corner_radius=0)
         franja_lateral.pack(side="left", fill="y")
 
-        # Contenido interno de la tarjeta
         card_inner = ctk.CTkFrame(card_exterior, fg_color="transparent")
-        card_inner.pack(side="left", fill="both", expand=True, padx=20, pady=18)
+        card_inner.pack(side="left", fill="both", expand=True, padx=22, pady=18)
 
-        # 1. Badge Píldora de color sólido con texto blanco en mayúsculas
-        badge_pildora = ctk.CTkFrame(card_inner, fg_color=color_tema, corner_radius=RADIUS_PILL)
-        badge_pildora.pack(anchor="w", pady=(0, 10))
+        # 1. Badge Píldora oficial (36px de alto en chat)
+        badge_wrap = ctk.CTkFrame(card_inner, fg_color="transparent")
+        badge_wrap.pack(anchor="w", pady=(0, 10))
+        Badge(badge_wrap, categoria=cat, alto=BADGE_HEIGHT_CHAT, ancho=140).pack(side="left")
 
-        ctk.CTkLabel(
-            badge_pildora,
-            text=f"  {titulo_badge}  ",
-            font=ctk.CTkFont(family=FONT_FAMILY, size=11, weight="bold"),
-            text_color=BLANCO
-        ).pack(padx=8, pady=4)
-
-        # 2. Nivel de riesgo con etiqueta en negrita
+        # 2. Nivel de riesgo
         frame_riesgo = ctk.CTkFrame(card_inner, fg_color="transparent")
         frame_riesgo.pack(anchor="w", pady=2)
         ctk.CTkLabel(
             frame_riesgo,
             text="Nivel de riesgo: ",
-            font=ctk.CTkFont(family=FONT_FAMILY, size=13, weight="bold"),
+            font=ctk.CTkFont(family=FONT_BODY_BOLD[0], size=16, weight="bold"),
             text_color=TEXTO
         ).pack(side="left")
         ctk.CTkLabel(
             frame_riesgo,
-            text=res["nivel_riesgo"],
-            font=ctk.CTkFont(family=FONT_FAMILY, size=13),
+            text=str(res.get("nivel_riesgo", "MEDIO")),
+            font=ctk.CTkFont(family=FONT_BODY[0], size=16),
             text_color=TEXTO
         ).pack(side="left")
 
@@ -240,13 +231,13 @@ class ChatDetectorView(ctk.CTkFrame):
         ctk.CTkLabel(
             frame_conf,
             text="Confianza del modelo: ",
-            font=ctk.CTkFont(family=FONT_FAMILY, size=13, weight="bold"),
+            font=ctk.CTkFont(family=FONT_BODY_BOLD[0], size=16, weight="bold"),
             text_color=TEXTO
         ).pack(side="left")
         ctk.CTkLabel(
             frame_conf,
             text=f"{round(res['confianza']*100, 1)}%",
-            font=ctk.CTkFont(family=FONT_FAMILY, size=13),
+            font=ctk.CTkFont(family=FONT_BODY[0], size=16),
             text_color=TEXTO
         ).pack(side="left")
 
@@ -256,43 +247,43 @@ class ChatDetectorView(ctk.CTkFrame):
             ctk.CTkLabel(
                 card_inner,
                 text="Indicadores encontrados:",
-                font=ctk.CTkFont(family=FONT_FAMILY, size=13, weight="bold"),
+                font=ctk.CTkFont(family=FONT_BODY_BOLD[0], size=16, weight="bold"),
                 text_color=TEXTO
             ).pack(anchor="w", pady=(8, 2))
 
             for ind in indicadores:
                 ctk.CTkLabel(
                     card_inner,
-                    text=f" - {ind}",
-                    font=ctk.CTkFont(family=FONT_FAMILY, size=12),
+                    text=f"  • {ind}",
+                    font=ctk.CTkFont(family=FONT_BODY[0], size=15),
                     text_color=TEXTO
                 ).pack(anchor="w", pady=1)
 
-        # 5. Caja blanca interior con borde gris claro y radio 8
+        # 5. Caja blanca interior de recomendación con borde 2px
         caja_rec = ctk.CTkFrame(
             card_inner,
             fg_color=BLANCO,
-            corner_radius=8,
-            border_width=1,
+            corner_radius=RADIUS_CARD,
+            border_width=BORDER_WIDTH,
             border_color=BORDE
         )
         caja_rec.pack(fill="x", pady=(14, 4))
 
         rec_inner = ctk.CTkFrame(caja_rec, fg_color="transparent")
-        rec_inner.pack(fill="x", padx=14, pady=10)
+        rec_inner.pack(fill="x", padx=16, pady=12)
 
         ctk.CTkLabel(
             rec_inner,
             text="Recomendación:",
-            font=ctk.CTkFont(family=FONT_FAMILY, size=12, weight="bold"),
+            font=ctk.CTkFont(family=FONT_BODY_BOLD[0], size=15, weight="bold"),
             text_color=TEXTO
         ).pack(anchor="w")
 
         ctk.CTkLabel(
             rec_inner,
             text=res.get("recomendacion", ""),
-            wraplength=480,
-            font=ctk.CTkFont(family=FONT_FAMILY, size=12),
+            wraplength=520,
+            font=ctk.CTkFont(family=FONT_BODY[0], size=15),
             text_color=TEXTO,
             justify="left"
-        ).pack(anchor="w", pady=(2, 0))
+        ).pack(anchor="w", pady=(4, 0))

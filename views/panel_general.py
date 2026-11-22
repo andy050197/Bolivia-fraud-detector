@@ -1,176 +1,365 @@
-"""Resumen de SQLite y del modelo activo; no entrena ni modifica datos."""
+# views/panel_general.py
+"""
+Módulo 3: Panel General - Resumen del Sistema.
+Implementado fielmente según las Reglas Globales (Prompt 2).
+"""
+
 import logging
 import sqlite3
 from datetime import datetime
-
+import tkinter as tk
 import customtkinter as ctk
-from ui.theme import AZUL, BLANCO, SIDEBAR_HOVER
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from matplotlib.ticker import MaxNLocator
+
+from ui.theme import (
+    AZUL, AZUL_OSCURO, AZUL_SELECCION, FONDO, BLANCO, BORDE, TEXTO, TEXTO_MUTED,
+    ROJO, ROJO_CLARO, AMBAR, AMBAR_CLARO, VERDE, VERDE_CLARO, SIDEBAR_HOVER,
+    FONT_FAMILY, FONT_PAGE_TITLE, FONT_SUBTITLE, FONT_CARD_TITLE, FONT_STAT_NUM,
+    FONT_BODY, FONT_BODY_BOLD, FONT_BUTTON, BORDER_WIDTH, RADIUS_CARD, RADIUS_BUTTON,
+    BTN_HEIGHT_TOOL
+)
+from ui.components import PageHeader, Badge, BotonPrimario
 from database.db import obtener_estadisticas
 from ml.trainer import cargar_modelo
 
-COLOR_FRAUDE = "#ef4444"
-COLOR_SOSPECHOSO = "#f59e0b"
-COLOR_LEGITIMO = "#22c55e"
 logger = logging.getLogger(__name__)
 
-
-def _metrica(valor):
-    """trainer guarda métricas en porcentaje, no en escala 0–1."""
+def _metrica_fmt(valor) -> str:
+    """Formatea métricas a porcentaje con un decimal."""
     try:
-        numero = float(valor)
-        return f"{numero:.1f}%" if 0 <= numero <= 100 else "No disponible"
+        num = float(valor)
+        if 0 <= num <= 1.0:
+            num = num * 100.0
+        return f"{num:.1f}%"
     except (ValueError, TypeError):
-        return "No disponible"
-
+        return "—"
 
 class PanelGeneralView(ctk.CTkFrame):
     def __init__(self, master):
-        super().__init__(master, fg_color="#eef3f8")
-        self.canvas_grafico = None
-        self._figura = None
+        super().__init__(master, fg_color=FONDO, corner_radius=0)
         self._build_ui()
-
-    def _build_ui(self):
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(3, weight=1)
-        ctk.CTkLabel(self, text="Panel General - Resumen del Sistema", anchor="w",
-                     font=ctk.CTkFont(size=22, weight="bold"), text_color="#1e293b").grid(row=0, column=0, sticky="ew", padx=24, pady=(24, 4))
-        cabecera = ctk.CTkFrame(self, fg_color="transparent")
-        cabecera.grid(row=1, column=0, sticky="ew", padx=24, pady=(0, 16))
-        cabecera.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(cabecera, text="Detector de fraudes digitales en español boliviano", text_color="#64748b").grid(row=0, column=0, sticky="w")
-        ctk.CTkButton(cabecera, text="Actualizar", fg_color=AZUL, hover_color=SIDEBAR_HOVER, text_color=BLANCO, width=105, command=self._actualizar).grid(row=0, column=1)
-        tarjetas = ctk.CTkFrame(self, fg_color="transparent")
-        tarjetas.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 16))
-        for columna in range(4):
-            tarjetas.grid_columnconfigure(columna, weight=1, uniform="tarjetas")
-        self.card_total = self._stat_card(tarjetas, 0, "Total mensajes\nanalizados", "#1e40af")
-        self.card_fraudes = self._stat_card(tarjetas, 1, "Fraudes\ndetectados", COLOR_FRAUDE)
-        self.card_sosp = self._stat_card(tarjetas, 2, "Mensajes\nsospechosos", COLOR_SOSPECHOSO)
-        self.card_legitimos = self._stat_card(tarjetas, 3, "Mensajes\nlegítimos", COLOR_LEGITIMO)
-        # El contenedor permite desplazarse verticalmente en ventanas bajas.
-        contenido = ctk.CTkFrame(self, fg_color="transparent")
-        contenido.grid(row=3, column=0, sticky="nsew", padx=18)
-        contenido.grid_columnconfigure((0, 1), weight=1, uniform="bloques")
-        contenido.grid_rowconfigure(0, weight=1)
-        self.frame_modelo = ctk.CTkFrame(contenido, fg_color="white", border_width=1, border_color="#e2e8f0", corner_radius=12)
-        self.frame_modelo.grid(row=0, column=0, sticky="nsew", padx=4, pady=(0, 12))
-        ctk.CTkLabel(self.frame_modelo, text="Estado del Modelo Activo", font=ctk.CTkFont(size=15, weight="bold"), text_color="#1e293b").pack(anchor="w", padx=18, pady=(14, 8))
-        self.lbl_algoritmo = self._info_label("Algoritmo:")
-        self.lbl_f1 = self._info_label("F1-Score (Fraude):")
-        self.lbl_recall = self._info_label("Recall (Fraude):")
-        self.lbl_fecha = self._info_label("Último entrenamiento:")
-        self.lbl_badge = ctk.CTkLabel(self.frame_modelo, text="Pendiente de consulta", text_color="#64748b")
-        self.lbl_badge.pack(anchor="w", padx=18, pady=(8, 14))
-        self.frame_grafico = ctk.CTkFrame(contenido, fg_color="white", border_width=1, border_color="#e2e8f0", corner_radius=12)
-        self.frame_grafico.grid(row=0, column=1, sticky="nsew", padx=4, pady=(0, 10))
-        ctk.CTkLabel(self.frame_grafico, text="Distribución de Categorías Evaluadas", font=ctk.CTkFont(size=15, weight="bold"), text_color="#1e293b").pack(anchor="w", padx=18, pady=(14, 4))
-        self.lbl_estado = ctk.CTkLabel(self, text="", anchor="w", text_color="#64748b", wraplength=620)
-        self.lbl_estado.grid(row=4, column=0, sticky="ew", padx=24, pady=10)
-
-    def _stat_card(self, parent, columna, titulo, color):
-        card = ctk.CTkFrame(parent, fg_color="white", border_width=1, border_color="#aeb9c5", corner_radius=12)
-        card.grid(row=0, column=columna, sticky="nsew", padx=4)
-        ctk.CTkLabel(card, text=titulo, text_color="#64748b", font=ctk.CTkFont(size=16)).pack(anchor="center", padx=8, pady=(12, 3))
-        etiqueta = ctk.CTkLabel(card, text="—", font=ctk.CTkFont(size=28, weight="bold"), text_color="#142448")
-        etiqueta.pack(anchor="center", padx=8, pady=(0, 12))
-        if columna:
-            ctk.CTkFrame(card, height=5, fg_color=color).pack(fill="x", padx=4, pady=(0, 2))
-        return etiqueta
-
-    def _info_label(self, titulo):
-        fila = ctk.CTkFrame(self.frame_modelo, fg_color="transparent")
-        fila.pack(fill="x", padx=18, pady=2)
-        fila.grid_columnconfigure(1, weight=1)
-        ctk.CTkLabel(fila, text=titulo, text_color="#64748b", width=145, anchor="w").grid(row=0, column=0, sticky="nw")
-        etiqueta = ctk.CTkLabel(fila, text="—", text_color="#1e293b", anchor="w", justify="left", wraplength=145)
-        etiqueta.grid(row=0, column=1, sticky="ew")
-        return etiqueta
-
-    def on_show(self):
         self._actualizar()
 
+    def _build_ui(self):
+        # 1. Encabezado Oficial con Botón de Actualizar alineado a la derecha
+        frame_top = ctk.CTkFrame(self, fg_color="transparent")
+        frame_top.pack(fill="x", padx=40, pady=(32, 16))
+
+        info_header = ctk.CTkFrame(frame_top, fg_color="transparent")
+        info_header.pack(side="left", fill="both", expand=True)
+
+        ctk.CTkLabel(
+            info_header,
+            text="Panel General - Resumen del Sistema",
+            font=ctk.CTkFont(family=FONT_PAGE_TITLE[0], size=FONT_PAGE_TITLE[1], weight=FONT_PAGE_TITLE[2]),
+            text_color=AZUL_OSCURO
+        ).pack(anchor="w")
+
+        ctk.CTkLabel(
+            info_header,
+            text="Estado general del detector de fraudes digitales en español boliviano",
+            font=ctk.CTkFont(family=FONT_SUBTITLE[0], size=FONT_SUBTITLE[1]),
+            text_color=TEXTO_MUTED
+        ).pack(anchor="w", pady=(6, 0))
+
+        self.btn_refresh = BotonPrimario(
+            frame_top,
+            text="Actualizar",
+            width=130,
+            height=BTN_HEIGHT_TOOL,
+            command=self._actualizar
+        )
+        self.btn_refresh.pack(side="right", anchor="center")
+
+        # 2. Fila Superior: 4 Tarjetas Estadísticas con gap 24px
+        self.frame_tarjetas = ctk.CTkFrame(self, fg_color="transparent")
+        self.frame_tarjetas.pack(fill="x", padx=40, pady=(0, 24))
+
+        for col in range(4):
+            self.frame_tarjetas.grid_columnconfigure(col, weight=1, uniform="stat_cards")
+
+        # Tarjeta 1: Total (sin barra inferior)
+        self.lbl_num_total = self._crear_stat_card(
+            col=0,
+            titulo="Total Mensajes\nAnalizados:",
+            color_barra=None
+        )
+
+        # Tarjeta 2: Fraudes (barra ROJO)
+        self.lbl_num_fraudes = self._crear_stat_card(
+            col=1,
+            titulo="Fraudes\nDetectados:",
+            color_barra=ROJO
+        )
+
+        # Tarjeta 3: Sospechosos (barra AMBAR)
+        self.lbl_num_sospechosos = self._crear_stat_card(
+            col=2,
+            titulo="Mensajes\nSospechosos:",
+            color_barra=AMBAR
+        )
+
+        # Tarjeta 4: Legítimos (barra VERDE)
+        self.lbl_num_legitimos = self._crear_stat_card(
+            col=3,
+            titulo="Mensajes\nLegítimos:",
+            color_barra=VERDE
+        )
+
+        # 3. Fila Inferior: 2 Tarjetas del mismo ancho y misma altura (Sección 3)
+        self.frame_inferior = ctk.CTkFrame(self, fg_color="transparent")
+        self.frame_inferior.pack(fill="both", expand=True, padx=40, pady=(0, 24))
+
+        self.frame_inferior.grid_columnconfigure(0, weight=1, uniform="bloques_inf")
+        self.frame_inferior.grid_columnconfigure(1, weight=1, uniform="bloques_inf")
+        self.frame_inferior.grid_rowconfigure(0, weight=1)
+
+        # --- TARJETA IZQUIERDA: Estado del Modelo Activo ---
+        self.card_modelo = ctk.CTkFrame(
+            self.frame_inferior,
+            fg_color=BLANCO,
+            border_width=BORDER_WIDTH,
+            border_color=BORDE,
+            corner_radius=RADIUS_CARD
+        )
+        self.card_modelo.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
+
+        ctk.CTkLabel(
+            self.card_modelo,
+            text="Estado del Modelo Activo",
+            font=ctk.CTkFont(family=FONT_CARD_TITLE[0], size=FONT_CARD_TITLE[1], weight=FONT_CARD_TITLE[2]),
+            text_color=AZUL_OSCURO
+        ).pack(anchor="w", padx=24, pady=(20, 16))
+
+        # Contenedor de filas clave-valor alineadas en 2 columnas
+        frame_filas_mod = ctk.CTkFrame(self.card_modelo, fg_color="transparent")
+        frame_filas_mod.pack(fill="x", padx=24, pady=(0, 20))
+
+        self.lbl_val_algoritmo = self._crear_fila_modelo(frame_filas_mod, 0, "Algoritmo:")
+        self.lbl_val_f1 = self._crear_fila_modelo(frame_filas_mod, 1, "F1-Score (Fraude):")
+        self.lbl_val_recall = self._crear_fila_modelo(frame_filas_mod, 2, "Recall (Fraude):")
+        self.lbl_val_fecha = self._crear_fila_modelo(frame_filas_mod, 3, "Último entrenamiento:")
+
+        # Badge Operativo / Sin entrenar
+        self.frame_badge_mod = ctk.CTkFrame(self.card_modelo, fg_color="transparent")
+        self.frame_badge_mod.pack(anchor="w", padx=24, pady=(4, 20))
+        self.badge_widget = Badge(self.frame_badge_mod, categoria="Sin entrenar", alto=30, ancho=110)
+        self.badge_widget.pack(side="left")
+
+        # --- TARJETA DERECHA: Distribución de Categorías Evaluadas ---
+        self.card_distribucion = ctk.CTkFrame(
+            self.frame_inferior,
+            fg_color=BLANCO,
+            border_width=BORDER_WIDTH,
+            border_color=BORDE,
+            corner_radius=RADIUS_CARD
+        )
+        self.card_distribucion.grid(row=0, column=1, sticky="nsew", padx=(12, 0))
+
+        ctk.CTkLabel(
+            self.card_distribucion,
+            text="Distribución de Categorías Evaluadas",
+            font=ctk.CTkFont(family=FONT_CARD_TITLE[0], size=FONT_CARD_TITLE[1], weight=FONT_CARD_TITLE[2]),
+            text_color=AZUL_OSCURO
+        ).pack(anchor="w", padx=24, pady=(20, 10))
+
+        # Canvas nativo para barras horizontales gruesas y nítidas
+        self.canvas_dist = tk.Canvas(self.card_distribucion, bg=BLANCO, highlightthickness=0)
+        self.canvas_dist.pack(fill="both", expand=True, padx=24, pady=(0, 20))
+        self.canvas_dist.bind("<Configure>", lambda e: self._redibujar_barras())
+
+        self._datos_categorias = {"fraudes": 0, "sospechosos": 0, "legitimos": 0, "total": 0}
+
+    def _crear_stat_card(self, col: int, titulo: str, color_barra=None):
+        pad_x = (0, 12) if col == 0 else ((12, 0) if col == 3 else 12)
+        card = ctk.CTkFrame(
+            self.frame_tarjetas,
+            fg_color=BLANCO,
+            border_width=BORDER_WIDTH,
+            border_color=BORDE,
+            corner_radius=RADIUS_CARD
+        )
+        card.grid(row=0, column=col, sticky="nsew", padx=pad_x)
+
+        inner = ctk.CTkFrame(card, fg_color="transparent")
+        inner.pack(fill="both", expand=True, padx=20, pady=20)
+
+        ctk.CTkLabel(
+            inner,
+            text=titulo,
+            font=ctk.CTkFont(family=FONT_BODY_BOLD[0], size=15, weight=FONT_BODY_BOLD[2]),
+            text_color=TEXTO_MUTED,
+            justify="center"
+        ).pack(anchor="center", pady=(0, 8))
+
+        lbl_num = ctk.CTkLabel(
+            inner,
+            text="0",
+            font=ctk.CTkFont(family=FONT_STAT_NUM[0], size=FONT_STAT_NUM[1], weight=FONT_STAT_NUM[2]),
+            text_color=AZUL_OSCURO
+        )
+        lbl_num.pack(anchor="center", pady=(0, 8))
+
+        if color_barra:
+            # Barra inferior de 6px respetando el borde
+            barra = ctk.CTkFrame(card, height=6, fg_color=color_barra, corner_radius=3)
+            barra.pack(fill="x", side="bottom", padx=8, pady=(0, 6))
+
+        return lbl_num
+
+    def _crear_fila_modelo(self, parent, row_idx: int, label_text: str):
+        row = ctk.CTkFrame(parent, fg_color="transparent", height=38)
+        row.pack(fill="x", pady=4)
+        row.pack_propagate(False)
+
+        ctk.CTkLabel(
+            row,
+            text=label_text,
+            font=ctk.CTkFont(family=FONT_BODY[0], size=16),
+            text_color=TEXTO_MUTED
+        ).pack(side="left", anchor="center")
+
+        lbl_val = ctk.CTkLabel(
+            row,
+            text="—",
+            font=ctk.CTkFont(family=FONT_BODY_BOLD[0], size=16, weight="bold"),
+            text_color=AZUL_OSCURO
+        )
+        lbl_val.pack(side="right", anchor="center")
+        return lbl_val
+
     def _actualizar(self):
-        errores = []
+        # 1. Consultar estadísticas de SQLite
         try:
             stats = obtener_estadisticas()
         except sqlite3.Error:
-            logger.exception("No se pudieron consultar las estadísticas")
-            for tarjeta in (self.card_total, self.card_fraudes, self.card_sosp, self.card_legitimos):
-                tarjeta.configure(text="—")
-            self._dibujar_grafico(None)
-            errores.append("No se pudieron consultar las estadísticas.")
-        else:
-            for tarjeta, clave in ((self.card_total, "total"), (self.card_fraudes, "fraudes"),
-                                    (self.card_sosp, "sospechosos"), (self.card_legitimos, "legitimos")):
-                tarjeta.configure(text=str(stats[clave]))
-            self._dibujar_grafico(stats)
-        # Ambas fuentes se actualizan independientemente: un fallo no oculta la otra.
-        self._restablecer_modelo()
+            logger.exception("Error al consultar estadísticas para el panel")
+            stats = {"total": 0, "fraudes": 0, "sospechosos": 0, "legitimos": 0}
+
+        self.lbl_num_total.configure(text=str(stats.get("total", 0)))
+        self.lbl_num_fraudes.configure(text=str(stats.get("fraudes", 0)))
+        self.lbl_num_sospechosos.configure(text=str(stats.get("sospechosos", 0)))
+        self.lbl_num_legitimos.configure(text=str(stats.get("legitimos", 0)))
+
+        self._datos_categorias = stats
+        self._redibujar_barras()
+
+        # 2. Consultar modelo activo
         try:
             modelo, info = cargar_modelo()
-            if modelo is not None:
-                if not isinstance(info, dict):
-                    raise ValueError("Metadatos del modelo inválidos")
-                self.lbl_algoritmo.configure(text=info.get("algoritmo") or "No disponible")
-                self.lbl_f1.configure(text=_metrica(info.get("f1")))
-                self.lbl_recall.configure(text=_metrica(info.get("recall")))
-                self.lbl_fecha.configure(text=info.get("fecha") or "No disponible")
-                self.lbl_badge.configure(text="Modelo cargado" if info else "Modelo cargado - Sin metadatos", text_color="#15803d")
+            if modelo is not None and isinstance(info, dict):
+                self.lbl_val_algoritmo.configure(text=str(info.get("algoritmo", "Random Forest")))
+                self.lbl_val_f1.configure(text=_metrica_fmt(info.get("f1")))
+                self.lbl_val_recall.configure(text=_metrica_fmt(info.get("recall")))
+                self.lbl_val_fecha.configure(text=str(info.get("fecha", "—")))
+
+                self.badge_widget.destroy()
+                self.badge_widget = Badge(self.frame_badge_mod, categoria="Operativo", alto=30, ancho=110)
+                self.badge_widget.pack(side="left")
+            else:
+                self._reset_info_modelo()
         except Exception:
-            # pickle puede fallar por archivo incompleto, versión o dependencia.
-            logger.exception("No se pudo cargar el modelo activo")
-            self.lbl_badge.configure(text="Error al cargar el modelo", text_color="#b91c1c")
-            errores.append("No se pudo cargar el modelo activo.")
-        self.lbl_estado.configure(text=(" ".join(errores) + " Pulsa Actualizar para reintentar." if errores
-                                       else "Actualizado: " + datetime.now().strftime("%d/%m/%Y %H:%M:%S")),
-                                  text_color="#b91c1c" if errores else "#64748b")
+            logger.exception("Error al cargar modelo en panel")
+            self._reset_info_modelo()
 
-    def _restablecer_modelo(self):
-        self.lbl_algoritmo.configure(text="Sin modelo entrenado")
-        for etiqueta in (self.lbl_f1, self.lbl_recall, self.lbl_fecha):
-            etiqueta.configure(text="—")
-        self.lbl_badge.configure(text="Sin entrenar", text_color="#64748b")
+    def _reset_info_modelo(self):
+        self.lbl_val_algoritmo.configure(text="Sin modelo entrenado")
+        self.lbl_val_f1.configure(text="—")
+        self.lbl_val_recall.configure(text="—")
+        self.lbl_val_fecha.configure(text="—")
 
-    def _liberar_grafico(self):
-        if self.canvas_grafico is not None:
-            self.canvas_grafico.get_tk_widget().destroy()
-            self.canvas_grafico = None
-        if self._figura is not None:
-            self._figura.clear()
-            self._figura = None
+        self.badge_widget.destroy()
+        self.badge_widget = Badge(self.frame_badge_mod, categoria="Sin entrenar", alto=30, ancho=110)
+        self.badge_widget.pack(side="left")
 
-    def _dibujar_grafico(self, stats):
-        self._liberar_grafico()
-        fig = self._figura = Figure(figsize=(3, 2), layout="constrained", dpi=100, facecolor="white")
-        ax = fig.add_subplot(111)
-        valores = [stats[clave] for clave in ("fraudes", "sospechosos", "legitimos")] if stats is not None else []
-        if not valores or not any(valores):
-            ax.axis("off")
-            texto = "Estadísticas no disponibles" if stats is None else "Aún no hay análisis para graficar"
-            ax.text(0.5, 0.5, texto, ha="center", va="center", color="#64748b", transform=ax.transAxes)
-        else:
-            barras = ax.barh(["Fraude", "Sospechoso", "Legítimo"], valores,
-                             color=[COLOR_FRAUDE, COLOR_SOSPECHOSO, COLOR_LEGITIMO], height=0.5)
-            ax.invert_yaxis()
-            ax.set_xlim(0, max(valores) * 1.3)
-            ax.xaxis.set_major_locator(MaxNLocator(integer=True))
-            ax.set_xlabel("Cantidad de mensajes", fontsize=12)
-            ax.tick_params(axis="both", labelsize=12)
-            for borde in ("top", "right"):
-                ax.spines[borde].set_visible(False)
-            for barra, valor in zip(barras, valores):
-                ax.annotate(str(valor), (valor, barra.get_y() + barra.get_height()/2),
-                             xytext=(5, 0), textcoords="offset points", va="center", fontsize=12)
-        ax.set_axisbelow(True)
-        ax.grid(axis="x", alpha=0.22)
-        self.canvas_grafico = FigureCanvasTkAgg(fig, master=self.frame_grafico)
-        self.canvas_grafico.draw()
-        self.canvas_grafico.get_tk_widget().pack(fill="both", expand=True, padx=12, pady=(0, 12))
+    def _redibujar_barras(self):
+        self.canvas_dist.delete("all")
+        w = self.canvas_dist.winfo_width()
+        h = self.canvas_dist.winfo_height()
 
-    def destroy(self):
-        self._liberar_grafico()
-        super().destroy()
+        if w < 100 or h < 100:
+            return
+
+        total = self._datos_categorias.get("total", 0)
+        if total == 0:
+            self.canvas_dist.create_text(
+                w / 2, h / 2,
+                text="Sin datos todavía",
+                font=(FONT_FAMILY, 16),
+                fill=TEXTO_MUTED
+            )
+            return
+
+        # Dibujar cuadrícula vertical tenue de fondo
+        num_grid_lines = 5
+        x_start = 120
+        x_end = w - 60
+        disp_width = max(50, x_end - x_start)
+
+        for i in range(num_grid_lines + 1):
+            gx = x_start + (disp_width * i / num_grid_lines)
+            self.canvas_dist.create_line(gx, 20, gx, h - 30, fill="#E2E8F0", width=1)
+            # Porcentaje guía
+            pct_val = int((100 * i) / num_grid_lines)
+            self.canvas_dist.create_text(
+                gx, h - 16,
+                text=f"{pct_val}%",
+                font=(FONT_FAMILY, 11),
+                fill=TEXTO_MUTED
+            )
+
+        # 3 barras horizontales gruesas (alto ≈ 44px)
+        items = [
+            ("Fraude", self._datos_categorias.get("fraudes", 0), ROJO),
+            ("Sospechoso", self._datos_categorias.get("sospechosos", 0), AMBAR),
+            ("Legítimo", self._datos_categorias.get("legitimos", 0), VERDE)
+        ]
+
+        bar_height = 40
+        espacio_disponible = (h - 60)
+        gap = (espacio_disponible - (bar_height * 3)) / 4
+        y_curr = 24 + gap
+
+        max_val = max(1, total)
+
+        for etiqueta, valor, color in items:
+            pct = valor / max_val
+            bar_len = max(8, disp_width * pct)
+
+            # Etiqueta de categoría a la izquierda
+            self.canvas_dist.create_text(
+                x_start - 14, y_curr + (bar_height / 2),
+                text=etiqueta,
+                font=(FONT_FAMILY, 14, "bold"),
+                fill=AZUL_OSCURO,
+                anchor="e"
+            )
+
+            # Barra con esquinas redondeadas
+            x0 = x_start
+            y0 = y_curr
+            x1 = x_start + bar_len
+            y1 = y_curr + bar_height
+
+            # Dibujar rectángulo redondeado simulado
+            r = 8
+            self.canvas_dist.create_rectangle(x0 + r, y0, x1 - r, y1, fill=color, outline="")
+            self.canvas_dist.create_rectangle(x0, y0 + r, x1, y1 - r, fill=color, outline="")
+            self.canvas_dist.create_oval(x0, y0, x0 + 2*r, y0 + 2*r, fill=color, outline="")
+            self.canvas_dist.create_oval(x0, y1 - 2*r, x0 + 2*r, y1, fill=color, outline="")
+            self.canvas_dist.create_oval(x1 - 2*r, y0, x1, y0 + 2*r, fill=color, outline="")
+            self.canvas_dist.create_oval(x1 - 2*r, y1 - 2*r, x1, y1, fill=color, outline="")
+
+            # Texto de cantidad y porcentaje
+            pct_txt = f"{valor} ({(valor/total)*100:.1f}%)" if total > 0 else "0"
+            self.canvas_dist.create_text(
+                x1 + 10, y_curr + (bar_height / 2),
+                text=pct_txt,
+                font=(FONT_FAMILY, 13, "bold"),
+                fill=AZUL_OSCURO,
+                anchor="w"
+            )
+
+            y_curr += bar_height + gap
+
+    def on_show(self):
+        self._actualizar()

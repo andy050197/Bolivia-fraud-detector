@@ -88,13 +88,13 @@ class App(ctk.CTk):
             lbl_ico = ctk.CTkLabel(frame_logo, image=self.img_escudo, text="")
             lbl_ico.pack(side="left")
         else:
-            lbl_ico = ctk.CTkLabel(frame_logo, text="🛡️", font=ctk.CTkFont(size=26))
+            lbl_ico = ctk.CTkLabel(frame_logo, text="BFD", font=ctk.CTkFont(family=FONT_FAMILY, size=20, weight="bold"), text_color=BLANCO)
             lbl_ico.pack(side="left")
 
         lbl_tit = ctk.CTkLabel(
             frame_logo,
             text="Bolivia Fraud\nDetector",
-            font=ctk.CTkFont(family=FONT_FAMILY, size=20, weight="bold"),
+            font=ctk.CTkFont(family=FONT_FAMILY, size=22, weight="bold"),
             text_color=BLANCO,
             justify="left"
         )
@@ -116,7 +116,7 @@ class App(ctk.CTk):
                 image=self._iconos.get(f"{icon_name}_white"),
                 compound="left",
                 anchor="w",
-                font=ctk.CTkFont(family=FONT_FAMILY, size=16),
+                font=ctk.CTkFont(family=FONT_FAMILY, size=15, weight="normal"),
                 fg_color="transparent",
                 text_color=BLANCO,
                 hover_color=SIDEBAR_HOVER,
