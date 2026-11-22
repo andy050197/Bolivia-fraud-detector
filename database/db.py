@@ -40,13 +40,11 @@ def inicializar_db():
 def guardar_analisis(mensaje, categoria, nivel_riesgo, confianza):
     """Guarda un análisis en el historial, anonimizando el mensaje."""
     import re
-    # Anonimizar: reemplazar números, URLs, montos
+    # Anonimizar: reemplazar números, URLs, montos manteniendo el mensaje íntegro
     anonimizado = re.sub(r'https?://\S+', '[URL]', mensaje)
     anonimizado = re.sub(r'Bs\.?\s*\d+[\.,]?\d*', 'Bs [MONTO]', anonimizado)
     anonimizado = re.sub(r'\b\d{7,}\b', '[NÚMERO]', anonimizado)
     anonimizado = re.sub(r'\+591\s*\d+', '[TELÉFONO]', anonimizado)
-    # Truncar a 80 caracteres para la tabla
-    anonimizado = anonimizado[:80] + ("..." if len(anonimizado) > 80 else "")
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -119,6 +117,16 @@ def agregar_mensaje_dataset(mensaje, categoria, origen="Manual", subcategoria=""
     cursor.execute(
         "INSERT INTO dataset (mensaje, categoria, origen, subcategoria) VALUES (?, ?, ?, ?)",
         (mensaje, categoria, origen, subcategoria)
+    )
+    conn.commit()
+    conn.close()
+
+def actualizar_mensaje_dataset(item_id, mensaje, categoria, origen="Manual", subcategoria=""):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE dataset SET mensaje = ?, categoria = ?, origen = ?, subcategoria = ? WHERE id = ?",
+        (mensaje, categoria, origen, subcategoria, item_id)
     )
     conn.commit()
     conn.close()

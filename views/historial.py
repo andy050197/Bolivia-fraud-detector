@@ -1,302 +1,319 @@
-"""Consulta del historial usando exclusivamente la API de database.db."""
-import tkinter as tk
+# views/historial.py
+"""
+Módulo 2: Historial de Análisis - Registro de Consultas.
+Implementado fielmente según las Reglas Globales (Prompt 2).
+"""
+
 import logging
 import sqlite3
-from tkinter import messagebox, ttk
-
+from tkinter import messagebox
 import customtkinter as ctk
-from ui.theme import AZUL, BLANCO, SIDEBAR_HOVER
-from PIL import Image, ImageDraw, ImageTk
+
+from ui.theme import (
+    AZUL, AZUL_OSCURO, AZUL_SELECCION, FONDO, BLANCO, BORDE, TEXTO, TEXTO_MUTED,
+    ROJO, ROJO_CLARO, AMBAR, VERDE, FONT_FAMILY, FONT_PAGE_TITLE, FONT_SUBTITLE,
+    FONT_BODY, FONT_BODY_BOLD, FONT_TABLE_HEAD, FONT_TABLE_CELL, FONT_BUTTON,
+    BORDER_WIDTH, RADIUS_CARD, RADIUS_INPUT, RADIUS_BUTTON, BTN_HEIGHT_TOOL,
+    INPUT_HEIGHT_TOOL, SIDEBAR_HOVER
+)
+from ui.components import (
+    PageHeader, DataTable, Badge, BotonPeligro, Buscador, cargar_icono_ctk
+)
 from database.db import obtener_historial, eliminar_historial_item, limpiar_historial
 
-COLOR_FRAUDE = "#ef4444"
-COLOR_SOSPECHOSO = "#f59e0b"
-COLOR_LEGITIMO = "#22c55e"
-CATEGORIAS = {"Todas las categorías": None, "Fraude": "fraude",
-              "Sospechoso": "sospechoso", "Legítimo": "legitimo"}
-NOMBRES = {"fraude": "Fraude", "sospechoso": "Sospechoso", "legitimo": "Legítimo"}
 logger = logging.getLogger(__name__)
 
+CATEGORIAS = {
+    "Todas las categorías": None,
+    "Fraude": "fraude",
+    "Sospechoso": "sospechoso",
+    "Legítimo": "legitimo"
+}
 
-def _porcentaje(valor):
-    """SQLite ya entrega la confianza en escala 0–100."""
+def _formatear_fecha_hora(fecha_raw: str) -> str:
+    """Divide 'DD/MM/YYYY HH:MM' en dos líneas para la tabla."""
+    if not fecha_raw:
+        return "—"
+    partes = str(fecha_raw).split(" ")
+    if len(partes) >= 2:
+        return f"{partes[0]}\n{partes[1]}"
+    return str(fecha_raw)
+
+def _formatear_confianza(valor) -> str:
+    """Devuelve confianza formateada a un decimal (ej. 78.0%)."""
     try:
-        numero = float(valor)
-        return f"{numero:.1f}%" if 0 <= numero <= 100 else "No disponible"
+        num = float(valor)
+        if 0 <= num <= 1.0:
+            num = num * 100.0
+        return f"{num:.1f}%"
     except (ValueError, TypeError):
-        return "No disponible"
-
-
-class SelectorCategoria(ctk.CTkComboBox):
-    """Mantiene el menú de CTk y dibuja el chevrón a la escala del control."""
-    def _draw(self, no_color_updates=False):
-        super()._draw(no_color_updates)
-        lienzo = self._canvas
-        lienzo.itemconfig("dropdown_arrow", state="hidden")
-        lienzo.itemconfig("border_parts_right", fill=self._apply_appearance_mode(self._border_color),
-                             outline=self._apply_appearance_mode(self._border_color))
-        lienzo.delete("chevron")
-        escala = self._apply_widget_scaling
-        x = escala(self._current_width - self._current_height / 2)
-        y = escala(self._current_height / 2)
-        lienzo.create_line(x-escala(4), y-escala(2), x, y+escala(2), x+escala(4), y-escala(2),
-                           width=escala(1.7), fill="#172536", capstyle="round", joinstyle="round",
-                           tags=("chevron", "right_parts"))
-
-    def _on_leave(self, event=None):
-        super()._on_leave(event)
-        self._draw()
-
-
-def _iconos_acciones(master, tamano):
-    # Dibujar a mayor resolución suaviza los contornos incluso en tamaños pequeños.
-    imagenes = []
-    for nombre in ("ojo", "papelera"):
-        imagen = Image.new("RGBA", (96, 96))
-        trazo = ImageDraw.Draw(imagen)
-        if nombre == "ojo":
-            color = "#17345a"
-            trazo.line([(5,48),(14,36),(26,26),(38,21),(48,20),(58,21),(70,26),
-                        (82,36),(91,48),(82,60),(70,70),(58,75),(48,76),(38,75),
-                        (26,70),(14,60),(5,48)], fill=color, width=7, joint="curve")
-            trazo.ellipse((35,35,61,61), outline=color, width=7)
-        else:
-            color = "#a51c25"
-            trazo.rounded_rectangle((24,28,72,87), radius=6, outline=color, width=7)
-            trazo.line((13,25,83,25), fill=color, width=7)
-            trazo.rounded_rectangle((36,10,60,26), radius=4, outline=color, width=6)
-            for x in (40,56):
-                trazo.line((x,39,x,73), fill=color, width=6)
-        imagenes.append(ImageTk.PhotoImage(imagen.resize((tamano, tamano), Image.Resampling.LANCZOS), master=master))
-    return imagenes
-
+        return "—"
 
 class HistorialView(ctk.CTkFrame):
     def __init__(self, master):
-        super().__init__(master, fg_color="#eef3f8")
-        self._pendiente = None
-        self._filas = {}
-        self._detalle = None
+        super().__init__(master, fg_color=FONDO, corner_radius=0)
+        self._pendiente_busqueda = None
+        self._filas_cache = {}
+        self._modal_detalle = None
+
         self._build_ui()
         self._cargar_datos()
 
     def _build_ui(self):
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(3, weight=1)
-        ctk.CTkLabel(self, text="Historial de Análisis - Registro de Consultas",
-                     font=ctk.CTkFont(size=22, weight="bold"), text_color="#1e293b",
-                     anchor="w").grid(row=0, column=0, sticky="ew", padx=24, pady=(24, 4))
-        ctk.CTkLabel(self, text="Consulta los mensajes evaluados y almacenados de forma anonimizada.",
-                     text_color="#64748b", anchor="w").grid(row=1, column=0, sticky="ew", padx=24)
-        filtros = ctk.CTkFrame(self, fg_color="transparent")
-        filtros.grid(row=2, column=0, sticky="ew", padx=24, pady=16)
-        filtros.grid_columnconfigure(0, weight=1)
-        self.entry_busqueda = ctk.CTkEntry(filtros, placeholder_text="Buscar por palabra clave...", height=36)
-        self.entry_busqueda.grid(row=0, column=0, sticky="ew", padx=(0, 10))
-        self.entry_busqueda.bind("<KeyRelease>", self._programar_busqueda)
-        self.entry_busqueda.bind("<Return>", lambda event: self._cargar_datos())
-        self.combo_cat = SelectorCategoria(filtros, fg_color="#f9f9fa", button_color="#f9f9fa", values=list(CATEGORIAS), state="readonly",
-                                       width=180, height=36, command=lambda value: self._cargar_datos())
+        # 1. Encabezado Oficial
+        PageHeader(
+            self,
+            titulo="Historial de Análisis - Registro de Consultas",
+            subtitulo="Consulta los mensajes evaluados previamente almacenados de forma anonimizada en SQLite"
+        )
+
+        # 2. Barra de herramientas en una sola fila (alineada a 40px con la tabla)
+        frame_toolbar = ctk.CTkFrame(self, fg_color="transparent")
+        frame_toolbar.pack(fill="x", padx=40, pady=(0, 20))
+
+        # Botón Peligro "Limpiar Historial" alineado a la derecha
+        self.btn_limpiar = BotonPeligro(
+            frame_toolbar,
+            text="Limpiar Historial",
+            icon="trash_red.png",
+            width=175,
+            height=BTN_HEIGHT_TOOL,
+            command=self._confirmar_limpiar
+        )
+        self.btn_limpiar.pack(side="right")
+
+        # Selector de Categoría (alto 44px, ancho ~210px) a la derecha
+        self.combo_cat = ctk.CTkOptionMenu(
+            frame_toolbar,
+            values=list(CATEGORIAS.keys()),
+            width=210,
+            height=BTN_HEIGHT_TOOL,
+            corner_radius=RADIUS_INPUT,
+            fg_color=BLANCO,
+            button_color=BLANCO,
+            button_hover_color=AZUL_SELECCION,
+            text_color=AZUL_OSCURO,
+            dropdown_font=ctk.CTkFont(family=FONT_BODY[0], size=FONT_BODY[1]),
+            font=ctk.CTkFont(family=FONT_BUTTON[0], size=FONT_BUTTON[1], weight=FONT_BUTTON[2]),
+            command=lambda v: self._cargar_datos()
+        )
         self.combo_cat.set("Todas las categorías")
-        self.combo_cat.grid(row=0, column=1)
-        ctk.CTkButton(filtros, text="Restablecer", fg_color=AZUL, hover_color=SIDEBAR_HOVER, text_color=BLANCO, width=110, height=36,
-                       command=self._restablecer).grid(row=1, column=0, sticky="w", pady=(10, 0))
-        ctk.CTkButton(filtros, text="Actualizar", fg_color=AZUL, hover_color=SIDEBAR_HOVER, text_color=BLANCO, width=110, height=36,
-                       command=self._cargar_datos).grid(row=1, column=1, sticky="e", pady=(10, 0))
+        self.combo_cat.pack(side="right", padx=(0, 12))
 
-        self.btn_limpiar = ctk.CTkButton(filtros, text="Limpiar historial", width=130,
-            fg_color="white", border_width=1, border_color="#b91c1c", text_color="#b91c1c",
-            hover_color="#fee2e2", command=self._limpiar)
-        self.btn_limpiar.grid(row=0, column=3, sticky="e")
-        filtros.grid_columnconfigure(0, weight=0)
-        filtros.grid_columnconfigure(2, weight=1)
-        self.entry_busqueda.configure(width=235)
-        self.canvas = tk.Canvas(self, bg="#eef3f8", highlightthickness=0)
-        self.canvas.grid(row=3, column=0, sticky="nsew", padx=24)
-        self.scroll = ttk.Scrollbar(self, command=self.canvas.yview)
-        self.scroll.grid(row=3, column=1, sticky="ns")
-        self.canvas.configure(yscrollcommand=self._scroll)
-        self.tabla = tk.Frame(self.canvas, bg="#aab4c2")
-        ventana = self.canvas.create_window(0, 0, anchor="nw", window=self.tabla)
-        self.canvas.bind("<Configure>", lambda e: self.canvas.itemconfigure(ventana, width=e.width))
-        self.tabla.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
-        self.seleccion = None
-        self._iconos = {}
-        self.celdas = {}
-        self.canvas.bind("<MouseWheel>", self._rueda)
-        for col, (titulo, peso) in enumerate(zip(
-                ("Fecha y hora", "Mensaje anonimizado", "Categoría", "Nivel de riesgo", "Confianza", "Acciones"),
-                (16, 30, 16, 13, 13, 12))):
-            self.tabla.grid_columnconfigure(col, weight=peso, uniform="col")
-            self._celda(0, col, titulo, encabezado=True)
-        self.lbl_estado = ctk.CTkLabel(self, text="", text_color="#64748b", anchor="w", wraplength=620)
-        self.lbl_estado.grid(row=4, column=0, sticky="ew", padx=24, pady=8)
-    def _scroll(self, inicio, fin):
-        self.scroll.set(inicio, fin)
-        if float(inicio) <= 0 and float(fin) >= 1:
-            self.scroll.grid_remove()
-        else:
-            self.scroll.grid()
+        # Buscador con bordes 2px completos y debounce automático
+        self.entry_busqueda = Buscador(
+            frame_toolbar,
+            placeholder_text="Buscar por palabra clave...",
+            command=self._cargar_datos,
+            height=BTN_HEIGHT_TOOL
+        )
+        self.entry_busqueda.pack(side="left", fill="x", expand=True, padx=(0, 12))
 
-    def _rueda(self, evento):
-        if self.scroll.winfo_ismapped():
-            direccion = -1 if getattr(evento, "num", None) == 4 or evento.delta > 0 else 1
-            self.canvas.yview_scroll(direccion * 3, "units")
-        return "break"
+        # 3. Tabla de datos centralizada con DataTable (Mensaje expandido con weight=1)
+        columnas_historial = [
+            ("Fecha y Hora", 0, "center", 115),
+            ("Mensaje Anonimizado", 1, "w", 260),
+            ("Categoría", 0, "center", 125),
+            ("Nivel de Riesgo", 0, "center", 130),
+            ("Confianza", 0, "center", 95),
+            ("Acciones", 0, "center", 85)
+        ]
 
-    def _celda(self, fila, col, texto, clave=None, color=None, encabezado=False):
-        fondo = "#e4eaf0" if encabezado else "#f3f7fb"
-        celda = tk.Frame(self.tabla, bg=fondo)
-        celda.grid(row=fila, column=col, sticky="nsew", padx=(1, 0), pady=(1, 0))
-        if col == 5 and not encabezado:
-            tamano = round(self._apply_widget_scaling(19))
-            if tamano not in self._iconos:
-                self._iconos[tamano] = _iconos_acciones(self, tamano)
-            celda.grid_anchor("center")
-            for i, accion in enumerate((self._ver_detalles, self._eliminar)):
-                tk.Button(celda, image=self._iconos[tamano][i], relief="flat", bg=fondo,
-                          activebackground="#dbeafe", borderwidth=0, cursor="hand2",
-                          command=lambda fn=accion: (self._seleccionar(clave), fn())).grid(
-                              row=0, column=i, padx=round(self._apply_widget_scaling(3)))
-        else:
-            etiqueta = tk.Label(celda, text=texto, font=("Segoe UI", -round(self._apply_widget_scaling(17)), "bold" if encabezado else "normal"),
-                                fg="white" if color else "#111e32", bg=color or fondo, justify="left",
-                                anchor="w", wraplength=90, padx=0, pady=0)
-            etiqueta.pack(anchor="w", expand=True, fill="x" if not color else "none", padx=5, pady=9)
-            celda.bind("<Configure>", lambda e: etiqueta.configure(wraplength=max(20,e.width-10)))
-        for widget in (celda, *celda.winfo_children()):
-            for evento in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
-                widget.bind(evento, self._rueda)
-            if clave and not isinstance(widget, tk.Button):
-                widget.bind("<Button-1>", lambda e: self._seleccionar(clave))
-                widget.bind("<Double-1>", lambda e: (self._seleccionar(clave), self._ver_detalles()))
-        if clave:
-            self.celdas.setdefault(clave, []).append(celda)
-
-    def _seleccionar(self, clave):
-        for anterior, fondo in ((self.seleccion, "#f3f7fb"), (clave, "#dbeafe")):
-            for celda in self.celdas.get(anterior, []):
-                celda.configure(bg=fondo)
-                for hijo in celda.winfo_children():
-                    if hijo.cget("bg") in ("#f3f7fb", "#dbeafe"):
-                        hijo.configure(bg=fondo)
-        self.seleccion = clave
-
-    def _cancelar_busqueda(self):
-        if self._pendiente is not None:
-            self.after_cancel(self._pendiente)
-            self._pendiente = None
-
-    def _programar_busqueda(self, event=None):
-        self._cancelar_busqueda()
-        self._pendiente = self.after(250, self._cargar_datos)
-
-    def _restablecer(self):
-        self.entry_busqueda.delete(0, "end")
-        self.combo_cat.set("Todas las categorías")
-        self._cargar_datos()
+        self.tabla = DataTable(
+            self,
+            columnas=columnas_historial,
+            empty_message="Aún no hay análisis registrados"
+        )
+        self.tabla.pack(fill="both", expand=True, padx=40, pady=(0, 24))
 
     def _cargar_datos(self):
-        self._cancelar_busqueda()
         busqueda = self.entry_busqueda.get().strip()
-        categoria = CATEGORIAS[self.combo_cat.get()]
-        seleccion = (self.seleccion,) if self.seleccion else ()
+        filtro_cat = CATEGORIAS.get(self.combo_cat.get())
+
         try:
-            filas = obtener_historial(filtro_categoria=categoria, busqueda=busqueda or None)
-        except sqlite3.Error:
-            logger.exception("No se pudo consultar el historial")
-            self._vaciar_tabla()
+            filas = obtener_historial(filtro_categoria=filtro_cat, busqueda=busqueda or None)
+        except sqlite3.Error as e:
+            logger.exception("Error al consultar historial")
+            self.tabla.show_empty(f"Error al conectar con la base de datos: {e}")
             self.btn_limpiar.configure(state="disabled")
-            self.lbl_estado.configure(text="No se pudo consultar el historial. Pulsa Actualizar para reintentar.", text_color="#b91c1c")
             return
-        self._vaciar_tabla()
-        for fila in filas:
-            id_, fecha, mensaje, cat, riesgo, confianza = fila
-            clave = str(id_)
-            self._filas[clave] = fila
-            valores = (fecha.replace(" ", "\n", 1), mensaje, NOMBRES.get(cat, cat), riesgo, _porcentaje(confianza), "")
-            colores = {"fraude": "#b72e34", "sospechoso": "#956612", "legitimo": "#338348"}
-            for col, valor in enumerate(valores):
-                self._celda(len(self._filas), col, valor, clave, colores.get(cat) if col == 2 else None)
-        if seleccion and seleccion[0] in self._filas:
-            self._seleccionar(seleccion[0])
-        # Una consulta filtrada vacía no implica que el historial completo esté vacío.
+
+        self._filas_cache.clear()
+        self.tabla.clear()
+
+        if not filas:
+            self.tabla.show_empty("Aún no hay análisis registrados")
+            self.btn_limpiar.configure(state="disabled")
+            return
+
         self.btn_limpiar.configure(state="normal")
-        texto = (f"{len(filas)} registro(s). Selecciona uno para ver sus detalles."
-                 if filas else "No hay coincidencias con estos filtros." if busqueda or categoria
-                 else "Aún no hay registros. Analiza un mensaje en Chat Detector.")
-        self.lbl_estado.configure(text=texto, text_color="#64748b")
 
-    def _vaciar_tabla(self):
-        for fila in self.celdas.values():
-            for celda in fila:
-                celda.destroy()
-        self.celdas.clear()
-        self._filas.clear()
-        self.seleccion = None
+        img_eye = cargar_icono_ctk("eye_blue.png", size=(20, 20))
+        img_trash = cargar_icono_ctk("trash_red.png", size=(20, 20))
 
-    def _ver_detalles(self):
-        seleccion = (self.seleccion,) if self.seleccion else ()
-        if not seleccion or seleccion[0] not in self._filas:
-            return
-        if self._detalle is not None and self._detalle.winfo_exists():
-            self._detalle.destroy()
-        id_, fecha, mensaje, cat, riesgo, confianza = self._filas[seleccion[0]]
-        ventana = self._detalle = ctk.CTkToplevel(self)
-        ventana.title(f"Detalle del análisis #{id_}")
-        ventana.geometry("580x460")
-        ventana.minsize(440, 360)
-        ventana.transient(self.winfo_toplevel())
-        ventana.grid_columnconfigure(0, weight=1)
-        ventana.grid_rowconfigure(2, weight=1)
-        ctk.CTkLabel(ventana, text=f"Análisis #{id_} - {fecha}", font=ctk.CTkFont(size=18, weight="bold")).grid(row=0, column=0, padx=20, pady=(20, 10), sticky="w")
-        ctk.CTkLabel(ventana, text=f"{NOMBRES.get(cat, cat)}  |  Riesgo: {riesgo}  |  Confianza: {_porcentaje(confianza)}").grid(row=1, column=0, padx=20, sticky="w")
-        contenido = ctk.CTkTextbox(ventana, wrap="word")
-        contenido.grid(row=2, column=0, padx=20, pady=14, sticky="nsew")
-        contenido.insert("1.0", mensaje)
-        contenido.configure(state="disabled")
-        ctk.CTkLabel(ventana, text="Se muestra solo el texto guardado: anonimizado y limitado a 80 caracteres\n(más puntos suspensivos). El mensaje original no se conserva.",
-                     justify="left", wraplength=500, text_color="#64748b").grid(row=3, column=0, padx=20, sticky="w")
-        ctk.CTkButton(ventana, text="Cerrar", fg_color=AZUL, hover_color=SIDEBAR_HOVER, text_color=BLANCO, command=ventana.destroy).grid(row=4, column=0, padx=20, pady=16, sticky="e")
-        ventana.bind("<Escape>", lambda event: ventana.destroy())
+        for fila in filas:
+            id_, fecha, msg_anon, cat, riesgo, confianza = fila
+            self._filas_cache[id_] = fila
 
-    def _eliminar(self):
-        seleccion = (self.seleccion,) if self.seleccion else ()
-        if not seleccion:
-            return
-        item_id = self._filas[seleccion[0]][0]
-        if not messagebox.askyesno("Eliminar registro", f"¿Eliminar el análisis #{item_id}?\nEsta acción no se puede deshacer.", parent=self, default="no", icon="warning"):
-            return
-        try:
-            eliminar_historial_item(item_id)
-        except sqlite3.Error:
-            logger.exception("No se pudo eliminar el análisis")
-            messagebox.showerror("Error", "No se pudo eliminar el registro. Intenta nuevamente.", parent=self)
-            return
-        self._cerrar_detalle()
-        self._cargar_datos()
+            # Celda 0: Fecha y Hora (dos líneas)
+            celda_fecha = _formatear_fecha_hora(fecha)
 
-    def _limpiar(self):
-        if not messagebox.askyesno("Limpiar todo el historial", "¿Eliminar TODOS los análisis, incluidos los ocultos por los filtros?\nEsta acción no se puede deshacer.", parent=self, default="no", icon="warning"):
-            return
-        try:
-            limpiar_historial()
-        except sqlite3.Error:
-            logger.exception("No se pudo limpiar el historial")
-            messagebox.showerror("Error", "No se pudo limpiar el historial. Intenta nuevamente.", parent=self)
-            return
-        self._cerrar_detalle()
-        self._cargar_datos()
+            # Celda 1: Mensaje Anonimizado
+            celda_msg = msg_anon
 
-    def _cerrar_detalle(self):
-        if self._detalle is not None and self._detalle.winfo_exists():
-            self._detalle.destroy()
-        self._detalle = None
+            # Celda 2: Badge oficial
+            def make_badge(parent, c=cat):
+                b = Badge(parent, categoria=c, alto=30, ancho=110)
+                return b
+
+            # Celda 3: Nivel de riesgo
+            celda_riesgo = str(riesgo).upper()
+
+            # Celda 4: Confianza
+            celda_conf = _formatear_confianza(confianza)
+
+            # Celda 5: Acciones (Ojo azul marino + Papelera roja, 20px)
+            def make_acciones(parent, item_id=id_):
+                f_acc = ctk.CTkFrame(parent, fg_color="transparent", width=70, height=36)
+                f_acc.pack_propagate(False)
+
+                btn_ojo = ctk.CTkButton(
+                    f_acc,
+                    text="",
+                    image=img_eye,
+                    width=28,
+                    height=28,
+                    fg_color="transparent",
+                    hover_color="#E0E7FF",
+                    corner_radius=6,
+                    command=lambda i=item_id: self._ver_detalle(i)
+                )
+                btn_ojo.pack(side="left", padx=2)
+
+                btn_borrar = ctk.CTkButton(
+                    f_acc,
+                    text="",
+                    image=img_trash,
+                    width=28,
+                    height=28,
+                    fg_color="transparent",
+                    hover_color=ROJO_CLARO,
+                    corner_radius=6,
+                    command=lambda i=item_id: self._confirmar_eliminar(i)
+                )
+                btn_borrar.pack(side="left", padx=2)
+                return f_acc
+
+            self.tabla.add_row(
+                [celda_fecha, celda_msg, make_badge, celda_riesgo, celda_conf, make_acciones],
+                is_highlighted=False
+            )
+
+        self.tabla.finalize_rows()
+
+    def _ver_detalle(self, item_id: int):
+        fila = self._filas_cache.get(item_id)
+        if not fila:
+            return
+
+        if self._modal_detalle is not None and self._modal_detalle.winfo_exists():
+            self._modal_detalle.destroy()
+
+        id_, fecha, msg_anon, cat, riesgo, confianza = fila
+
+        modal = self._modal_detalle = ctk.CTkToplevel(self)
+        modal.title(f"Detalle del Análisis #{id_}")
+        modal.geometry("580x460")
+        modal.transient(self.winfo_toplevel())
+        modal.grab_set()
+
+        # Cabecera modal
+        ctk.CTkLabel(
+            modal,
+            text=f"Análisis #{id_}  •  {fecha}",
+            font=ctk.CTkFont(family=FONT_PAGE_TITLE[0], size=20, weight="bold"),
+            text_color=AZUL_OSCURO
+        ).pack(anchor="w", padx=24, pady=(24, 8))
+
+        # Metadatos del análisis
+        frame_meta = ctk.CTkFrame(modal, fg_color="transparent")
+        frame_meta.pack(anchor="w", padx=24, pady=(0, 16))
+
+        Badge(frame_meta, categoria=cat, alto=30, ancho=110).pack(side="left", padx=(0, 12))
+
+        ctk.CTkLabel(
+            frame_meta,
+            text=f"Riesgo: {riesgo}   |   Confianza: {_formatear_confianza(confianza)}",
+            font=ctk.CTkFont(family=FONT_BODY_BOLD[0], size=FONT_BODY_BOLD[1], weight=FONT_BODY_BOLD[2]),
+            text_color=TEXTO
+        ).pack(side="left")
+
+        # Texto del mensaje anonimizado
+        ctk.CTkLabel(
+            modal,
+            text="Mensaje Evaluado (Anonimizado para privacidad):",
+            font=ctk.CTkFont(family=FONT_BODY_BOLD[0], size=14, weight="bold"),
+            text_color=TEXTO_MUTED
+        ).pack(anchor="w", padx=24, pady=(0, 6))
+
+        txt_box = ctk.CTkTextbox(
+            modal,
+            height=140,
+            font=ctk.CTkFont(family=FONT_BODY[0], size=15),
+            border_width=BORDER_WIDTH,
+            border_color=BORDE,
+            corner_radius=RADIUS_CARD
+        )
+        txt_box.pack(fill="x", padx=24, pady=(0, 12))
+        txt_box.insert("1.0", msg_anon)
+        txt_box.configure(state="disabled")
+
+        ctk.CTkLabel(
+            modal,
+            text="Por seguridad, enlaces, teléfonos y montos monetarios se almacenan ofuscados.",
+            font=ctk.CTkFont(family=FONT_BODY[0], size=12),
+            text_color=TEXTO_MUTED
+        ).pack(anchor="w", padx=24)
+
+        # Botón cerrar
+        btn_cerrar = ctk.CTkButton(
+            modal,
+            text="Cerrar",
+            width=120,
+            height=40,
+            corner_radius=RADIUS_BUTTON,
+            fg_color=AZUL,
+            hover_color=SIDEBAR_HOVER,
+            text_color=BLANCO,
+            font=ctk.CTkFont(family=FONT_BUTTON[0], size=FONT_BUTTON[1], weight=FONT_BUTTON[2]),
+            command=modal.destroy
+        )
+        btn_cerrar.pack(side="right", padx=24, pady=20)
+        modal.bind("<Escape>", lambda e: modal.destroy())
+
+    def _confirmar_eliminar(self, item_id: int):
+        if messagebox.askyesno(
+            "Confirmar eliminación",
+            f"¿Deseas eliminar el registro #{item_id} del historial?",
+            icon="warning"
+        ):
+            try:
+                eliminar_historial_item(item_id)
+                self._cargar_datos()
+            except sqlite3.Error as e:
+                messagebox.showerror("Error", f"No se pudo eliminar el registro: {e}")
+
+    def _confirmar_limpiar(self):
+        if messagebox.askyesno(
+            "Limpiar Historial",
+            "¿Estás seguro de eliminar TODOS los registros del historial?\nEsta acción no se puede deshacer.",
+            icon="warning"
+        ):
+            try:
+                limpiar_historial()
+                self._cargar_datos()
+            except sqlite3.Error as e:
+                messagebox.showerror("Error", f"No se pudo limpiar el historial: {e}")
 
     def on_show(self):
         self._cargar_datos()
-
-    def destroy(self):
-        self._cancelar_busqueda()
-        self._cerrar_detalle()
-        super().destroy()
